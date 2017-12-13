@@ -108,7 +108,6 @@
     if (!playlists.list)
         playlists.list = "[]";
 
-    var yoooo = plugin.createStore('yoooo', true);
 
     function addToFavoritesOption(item, link, title, icon) {
         item.link = link;
@@ -149,37 +148,6 @@
             page.error("Sorry, can't get channel's link :(");
         }
         page.loading = false;
-    });
-
-    plugin.addURI(plugin.getDescriptor().id + ":sputniktv:(.*):(.*)", function(page, url, title) {
-        page.loading = true;
-        var resp = showtime.httpReq(unescape(url)).toString();
-        var match = resp.match(/stream: "([\S\s]*?)"/);
-        if (!match)
-           match = resp.match(/file=([\S\s]*?)&/);
-        if (!match)
-           match = resp.match(/"src=([\S\s]*?)&/);
-        if (!match)
-           match = resp.match(/value="src=([\S\s]*?)"/)
-        if (match && showtime.probe(match[1]).result)
-           match = resp.match(/file=([\S\s]*?)"/);
-        page.loading = false;
-        if (match) {
-            var link = match[1].toString().replace(/&st=\/online\/video.txt/, '').replace('manifest.f4m', 'playlist.m3u8');
-            if (link.match(/m3u8/)) link = 'hls:' + link;
-            page.type = "video";
-            page.source = "videoparams:" + showtime.JSONEncode({
-                title: unescape(title),
-                canonicalUrl: plugin.getDescriptor().id + ':sputniktv:' + url + ':' + title,
-                sources: [{
-                    url: link
-                }],
-                no_subtitle_scan: true
-            });
-        } else {
-            page.metadata.title = unescape(title);
-            page.error("Sorry, can't get the link :(");
-        }
     });
 
     plugin.addURI(plugin.getDescriptor().id + ":ntv:(.*):(.*)", function(page, url, title) {
@@ -451,59 +419,6 @@
        } else page.error("Sorry, can't get the link :(");
     });
 
-    plugin.addURI(plugin.getDescriptor().id + ":yamgo:(.*):(.*)", function(page, url, title) {
-        page.loading = true;
-        page.metadata.title = unescape(title);
-
-        var resp = showtime.JSONDecode(showtime.httpReq("http://yamgo.com/get/channel?id=" + unescape(url)));
-        page.loading = false;
-        if (resp.channel && resp.channel.channel_stream) {
-            page.type = "video";
-            page.source = "videoparams:" + showtime.JSONEncode({
-                title: unescape(title),
-                canonicalUrl: plugin.getDescriptor().id + ':yamgo:' + url + ':' + title,
-                sources: [{
-                    url: 'hls:' + resp.channel.channel_stream
-                }],
-                no_subtitle_scan: true
-            });
-       } else page.error("Sorry, can't get the link :(");
-    });
-
-    plugin.addURI(plugin.getDescriptor().id + ":yamgoClips:(.*):(.*)", function(page, id, title) {
-        setPageHeader(page, unescape(title));
-        page.loading = true;
-        for (var i in clips[id]) {
-            page.appendItem('youtube:video:' + clips[id][i].yt_id , "video", {
-	        title: new showtime.RichText(clips[id][i].clip_name),
-                genre: clips[id][i].subcat_name,
-                duration: showtime.durationToString(clips[id][i].clip_duration),
-                description: new showtime.RichText(clips[id][i].yt_description)
-	    });
-        }
-        page.loading = false;
-    });
-
-    var clips = [];
-
-    plugin.addURI(plugin.getDescriptor().id + ":yamgoYoutube:(.*):(.*)", function(page, id, title) {
-        setPageHeader(page, unescape(title));
-        page.loading = true;
-        var json = showtime.JSONDecode(showtime.httpReq("http://yamgo.com/get/channel?id=" + unescape(id) + '&shows=1'));
-
-        for (var i in json.shows) {
-            page.appendItem(plugin.getDescriptor().id + ":yamgoClips:" + json.shows[i].id + ':' + escape(json.shows[i].name) , "video", {
-	        title: new showtime.RichText(json.shows[i].name),
-                genre: json.shows[i].subcat,
-                duration: showtime.durationToString(json.shows[i].duration),
-                icon: json.shows[i].image_url,
-                description: new showtime.RichText(json.shows[i].description)
-	    });
-            clips[json.shows[i].id] = json.shows[i].clips;
-        }
-        page.loading = false;
-    });
-
     plugin.addURI(plugin.getDescriptor().id + ":trk:(.*):(.*)", function(page, url, title) {
         page.loading = true;
         page.metadata.title = unescape(title);
@@ -557,6 +472,28 @@
                 canonicalUrl: plugin.getDescriptor().id + ':euronews:' + country + ':' + title,
                 sources: [{
                     url: 'hls:' + json.primary
+                }],
+                no_subtitle_scan: true
+            });
+        } else
+             page.error("Sorry, can't get the link :(");
+    });
+
+    plugin.addURI(plugin.getDescriptor().id + ":mediaklikk:(.*):(.*)", function(page, chn, title) {
+        page.loading = true;
+        page.metadata.title = unescape(title);
+        var html = showtime.httpReq('https://player.mediaklikk.hu/playernew/player.php?video=' + chn).toString();
+	html = html.match(/file": "([\s\S]*?)"/);
+        if (html) 
+            html = html[1].replace(/\\\//g, '/')
+	page.loading = false;
+        if (html) {
+            page.type = "video";
+            page.source = "videoparams:" + showtime.JSONEncode({
+                title: unescape(title),
+                canonicalUrl: plugin.getDescriptor().id + ':mediaklikk:' + chn + ':' + title,
+                sources: [{
+                    url: 'hls:http:' + html
                 }],
                 no_subtitle_scan: true
             });
@@ -766,191 +703,6 @@
                 });
                 page.flush();
                 page.redirect(plugin.getDescriptor().id + ':divanStart');
-            }
-        });
-        page.loading = false;
-    });
-
-    plugin.addURI(plugin.getDescriptor().id + ":sputnikStart", function(page) {
-        setPageHeader(page, 'Sputniktv.in.ua');
-        page.loading = true;
-
-        plugin.addHTTPAuth('.*divan\\.tv', function(req) {
-            req.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36');
-        });
-        plugin.addHTTPAuth('.*divan\\.tv.*', function(req) {
-            req.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36');
-        });
-
-        var n = 0;
-        // 1-link, 2-title, 3-epg
-        var re = /<div class="channel_main channel" onclick="location.href='([\s\S]*?)'[\s\S]*?<div class="program_title">([\s\S]*?)<\/div>([\s\S]*?)<\/span>/g;
-
-        var html = showtime.httpReq('http://sputniktv.in.ua/tv.html').toString();
-        var match = re.exec(html);
-        while (match) {
-            var epg = match[3].match(/<div class="pstart">([\s\S]*?)<\/div>[\s\S]*?<div class="pstartt">([\s\S]*?)<\/div><div class="progran_translation">([\s\S]*?)<\/div>/);
-            if (epg) epg  = coloredStr(' (' + epg[1] + '-' + epg[2] + ') ' + epg[3], orange)
-            else epg = ''
-            var link = plugin.getDescriptor().id + ':sputniktv:' + escape('http://sputniktv.in.ua/' + match[1]) + ':' + escape(match[2]);
-            var item = page.appendItem(link, 'video', {
-                title: new showtime.RichText(match[2] + epg),
-                description: new showtime.RichText(match[2] + epg)
-            });
-            addToFavoritesOption(item, link, match[2], '');
-            n++;
-            match = re.exec(html);
-        }
-        page.metadata.title = new showtime.RichText('Sputniktv.in.ua (' + n + ')');
-        page.loading = false;
-    });
-
-    plugin.addURI(plugin.getDescriptor().id + ":drundooPlay:(.*):(.*)", function(page, url, title) {
-        page.metadata.title = unescape(title);
-        page.loading = true;
-        var link = null, showDialog = false;
-        var doc = showtime.httpReq('http://drundoo.com' + unescape(url)).toString();
-        var link = doc.match(/getJSON\(\"([\s\S]*?)\"/);
-        if (doc.match(/user_not_logged/)) {
-            while (!link) {
-                page.loading = false;
-                var credentials = plugin.getAuthCredentials(plugin.getDescriptor().id, 'Enter email and password to login', showDialog, 'drundoo');
-                if (credentials.rejected) {
-                    page.error('Cannot continue without login/password :(');
-                    return false;
-                }
-
-                if (credentials && credentials.username && credentials.password) {
-                    page.loading = true;
-                    var resp = showtime.httpReq('http://drundoo.com/users/login/', {
-                        headers: {
-                            Origin: 'http://drundoo.com',
-                            Referer: 'http://drundoo.com/live/',
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        postdata: {
-                            'login_dialog': 1,
-                            'redirect_url': 'http://drundoo.com/live/',
-                            email: credentials.username,
-                            password: credentials.password
-                        }
-                    });
-                    doc = showtime.httpReq('http://drundoo.com' + unescape(url)).toString();
-                }
-                showDialog = true;
-                link = doc.match(/getJSON\(\"([\s\S]*?)\"/);
-            }
-        }
-
-        if (link) {
-            var json = showtime.JSONDecode(showtime.httpReq('http://drundoo.com' + link[1]));
-            page.type = 'video'
-            var link = "videoparams:" + showtime.JSONEncode({
-                title: unescape(title),
-                no_fs_scan: true,
-                canonicalUrl: plugin.getDescriptor().id + ':drundooPlay:' + url + ':' + title,
-                sources: [{
-                    url: 'hls:' + json.link,
-                }],
-                no_subtitle_scan: true
-            });
-            page.source = link;
-        } else
-            page.error("Sorry can't get the link :(");
-        page.loading = false;
-    });
-
-    plugin.addURI(plugin.getDescriptor().id + ":drundooStart", function(page) {
-        setPageHeader(page, 'Drun Doo');
-        page.loading = true;
-        doc = showtime.httpReq('http://drundoo.com/live/').toString();
-        var counter = 0;
-        // 1-logo, 2-genres, 3-from, 4-to, 5-playing now, 6-link, 7-title
-        var re = /<a class="logo logo-width"[\s\S]*?<img src="([\s\S]*?)"[\s\S]*?<p>([\s\S]*?)<\/p>[\s\S]*?<span class="from">([\s\S]*?)<\/span>[\s\S]*?<span class="to">([\s\S]*?)<\/span>[\s\S]*?class="plaing-now">([\s\S]*?)<\/h5>[\s\S]*?<a href="([\s\S]*?)"[\s\S]*?data-ga-label="([\s\S]*?)"/g;
-        var match = re.exec(doc);
-        while (match) {
-            var link = plugin.getDescriptor().id + ':drundooPlay:' + escape(match[6]) + ':' + escape(match[7]);
-            var icon = 'http://drundoo.com' + match[1];
-            var item = page.appendItem(link, "video", {
-                title: new showtime.RichText(match[7] + coloredStr(' (' + match[3] + '-' + match[4] + ') ' + match[5], orange)),
-                icon: icon,
-                genre: match[2].trim().replace(/;/g, ',').replace(/<[^>]*>/g, ''),
-                description: new showtime.RichText(match[7] + coloredStr(' (' + match[3] + '-' + match[4] + ') ' + match[5], orange))
-            });
-            addToFavoritesOption(item, link, match[7], icon);
-            counter++;
-            match = re.exec(doc);
-        };
-        page.metadata.title += ' (' + counter + ')';
-        page.options.createAction('setYooooKey', 'Set/change Yoooo.tv key', function() {
-            var result = showtime.textDialog('Enter authorization key:', true, true);
-            if (!result.rejected && result.input) {
-                yoooo.key = result.input;
-                var resp = showtime.httpReq('http://yoooo.tv/status.php?key=' + yoooo.key).toString();
-                showtime.notify("The key is set: " + resp.trim(), 2);
-                page.flush();
-                page.redirect(plugin.getDescriptor().id + ':yooooStart');
-            }
-        });
-        page.loading = false;
-    });
-
-    plugin.addURI(plugin.getDescriptor().id + ":yooooStart", function(page) {
-        setPageHeader(page, 'Yoooo.tv');
-        page.loading = true;
-        var id = yoooo.key ? yoooo.key.trim() : '';
-        plugin.addHTTPAuth('.*yoooo\\.tv', function(req) {
-            req.setHeader('Cookie', 'yoooo=' + id);
-        });
-        plugin.addHTTPAuth('.*yoooo\\.tv.*', function(req) {
-            req.setHeader('Cookie', 'yoooo=' + id);
-        });
-
-        if (!id) {
-            var doc = showtime.httpReq('http://yoooo.tv', {
-                headers: {
-                    'Cookie': ''
-                },
-                method: 'HEAD'
-            });
-            if (!doc.headers['Set-Cookie']) {
-                page.error("Sorry, can't get ID :(");
-                return;
-            }
-            id = (doc.headers['Set-Cookie']).match(/yoooo=([\S\s]*?);/)[1];
-        }
-
-        page.loading = true;
-        json = showtime.JSONDecode(showtime.httpReq('http://yoooo.tv/json/channel_now'));
-        var counter = 0;
-        for (var i in json) {
-            var title = json[i].channel_name;
-            var link = "videoparams:" + showtime.JSONEncode({
-                title: title,
-                sources: [{
-                    url: 'hls:http://tv.yoooo.tv/onstream/' + id + '/' + i + '.m3u8'
-                }],
-                no_subtitle_scan: true
-            });
-            var icon = 'http://yoooo.tv/images/playlist/' + json[i].img;
-            var item = page.appendItem(link, "video", {
-                title: new showtime.RichText(title + ' - ' + coloredStr(json[i].name, orange)),
-                icon: icon,
-                duration: json[i].duration / 60,
-                description: new showtime.RichText(coloredStr(json[i].name, orange) + ' ' + json[i].descr)
-            });
-            addToFavoritesOption(item, link, title, icon);
-            counter++;
-        };
-        page.metadata.title = 'Yoooo.tv (' + counter + ')';
-        page.options.createAction('setYooooKey', 'Set/change Yoooo.tv key', function() {
-            var result = showtime.textDialog('Enter authorization key:', true, true);
-            if (!result.rejected && result.input) {
-                yoooo.key = result.input;
-                var resp = showtime.httpReq('http://yoooo.tv/status.php?key=' + yoooo.key).toString();
-                showtime.notify("The key is set. Response: " + resp.trim(), 2);
-                page.flush();
-                page.redirect(plugin.getDescriptor().id + ':yooooStart');
             }
         });
         page.loading = false;
@@ -1820,88 +1572,6 @@
         page.loading = false;
     });
 
-    plugin.addURI(plugin.getDescriptor().id + ":playVodSpb:(.*):(.*)", function(page, id, title) {
-        page.loading = true;
-        page.type = 'video'
-        page.metadata.title = unescape(title);
-        try {
-            setSpbHeaders();
-            var json = showtime.JSONDecode(showtime.httpReq('http://tv3.spr.spbtv.com/v1/vods/' + id + '/stream?protocol=hds&'));
-            var link = "videoparams:" + showtime.JSONEncode({
-                title: showtime.entityDecode(unescape(title)),
-                no_fs_scan: true,
-                canonicalUrl: plugin.getDescriptor().id + ':playVodSpb:' + id + ':' + title,
-                sources: [{
-                    url: 'hls:' + json.stream.url.replace('.f4m?', '.m3u8?')
-                }],
-                no_subtitle_scan: true
-            });
-            page.source = link;
-        } catch(err) {
-            if (err.toString().match(/error: 403/))
-                err = 'Stream is not available in your country';
-            page.error(err);
-        }
-        page.loading = false;
-    });
-
-    plugin.addURI(plugin.getDescriptor().id + ":channelSpb:(.*):(.*)", function(page, id, title) {
-        setPageHeader(page, unescape(title));
-        page.loading = true;
-        setSpbHeaders();
-        var json = showtime.JSONDecode(showtime.httpReq('http://tv3.spr.spbtv.com/desktop/channels/' + id.match(/ch_(.*)/)[1] + '/videos.json?limit=10000'));
-        for (var i in json.videos) {
-            var name = json.videos[i].name.replace(/\n/g, '').replace(/''/g, "'").replace(/""/g, '"');
-            page.appendItem(plugin.getDescriptor().id + ':playVodSpb:' + escape(json.videos[i].id) + ':' + escape(name), 'video', {
-                title: new showtime.RichText(coloredStr(json.videos[i].language.iso2, orange) + ' ' + name.replace(/\\'/g, "'")),
-                icon: json.videos[i].images[0] ? json.videos[i].images[0].original_url : null,
-                description: new showtime.RichText(coloredStr('Language: ', orange) + json.videos[i].language.name +
-                    coloredStr('\nPublishing date: ', orange) + json.videos[i].publishing_date.split('T')[0] +
-                    (json.videos[i].description ? coloredStr('\nDescription: ', orange) + json.videos[i].description : '')),
-            });
-        }
-        page.metadata.title += ' (' + json.videos.length + ')';
-        page.loading = false;
-    });
-
-    plugin.addURI(plugin.getDescriptor().id + ":playSpb:(.*):(.*)", function(page, id, title) {
-        page.loading = true;
-        page.type = 'video'
-        page.metadata.title = unescape(title);
-        try {
-            setSpbHeaders();
-            var json = showtime.JSONDecode(showtime.httpReq('http://tv3.spr.spbtv.com/v1/channels/' + id.match(/ch_(.*)/)[1] + '/stream?protocol=hds&'));
-            var link = "videoparams:" + showtime.JSONEncode({
-                title: unescape(title),
-                no_fs_scan: true,
-                canonicalUrl: plugin.getDescriptor().id + ':playSpb:' + id + ':' + title,
-                sources: [{
-                    url: 'hls:' + json.stream.url.replace('.f4m?', '.m3u8?')
-                }],
-                no_subtitle_scan: true
-            });
-            page.source = link;
-        } catch(err) {
-            if (err.toString().match(/error: 403/))
-                err = 'Stream is not available in your country';
-            page.error(err);
-        }
-        page.loading = false;
-    });
-
-    var spbHeadersAreSet = false;
-    function setSpbHeaders() {
-        if (!spbHeadersAreSet) {
-            plugin.addHTTPAuth('.*spbtv\\.com', function(req) {
-                req.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36');
-            });
-            plugin.addHTTPAuth('.*spbtv\\.com.*', function(req) {
-                req.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36');
-            });
-            spbHeadersAreSet = true;
-        }
-    }
-
     var divanHeadersAreSet = false;
     function setDivanHeaders() {
         if (!divanHeadersAreSet) {
@@ -1914,91 +1584,6 @@
             divanHeadersAreSet = true;
         }
     }
-
-    plugin.addURI(plugin.getDescriptor().id + ":spbStart", function(page) {
-        setPageHeader(page, 'Spbtv.com');
-        page.loading = true;
-
-        setSpbHeaders();
-        var doc = showtime.httpReq('http://spbtv.com/channels/').toString();
-        var cList = doc.match(/<div id="channel_list([\s\S]*?)<\/div>/)[1];
-        // 1-category/lang/access/type, 2-id, 3-language, 4-logo, 5-description, 6-link, 7-title
-        var re = /<li class="([\s\S]*?)" id="([\s\S]*?)">[\s\S]*?<span class="lang">([\s\S]*?)<\/span><img src="([\s\S]*?)"[\s\S]*?<p title="([\s\S]*?)"><a href="([\s\S]*?)">([\s\S]*?)<\/a>/g;
-        var match = re.exec(cList);
-        var c = 0;
-        while (match) {
-            if (match[1].match(/paid/)) {
-                match = re.exec(cList);
-                continue;
-            }
-            var flags = match[1].split(' ');
-            if (flags[4] == 'free') {
-                var type = flags[5];
-                var lang = flags[3];
-            } else {
-                var type = flags[4];
-                var lang = flags[2];
-            }
-            if (type == 'vod')
-                var route = ":channelSpb:";
-            else
-                var route = ":playSpb:";
-            var link = plugin.getDescriptor().id + route + escape(match[2]) + ':' + escape(match[7]);
-            var title = coloredStr(type, orange) + ' ' + match[7] + ' ' + coloredStr(lang, orange);
-            var icon = 'http://spbtv.com' + match[4];
-            var item = page.appendItem(link, "video", {
-	        title: new showtime.RichText(title),
-                icon: icon,
-                description: new showtime.RichText(match[5])
-	    });
-            addToFavoritesOption(item, link, match[7], icon);
-            c++;
-            match = re.exec(cList);
-        }
-        page.metadata.title = new showtime.RichText(page.metadata.title + ' (' + c + ')');
-        page.loading = false;
-    });
-
-    var yamgoJson = null;
-    function getYamgoJson() {
-        var doc = showtime.httpReq('http://yamgo.com').toString();
-        var bPattern = 'channels = ';
-        var ePattern = '};';
-        yamgoJson = doc.substr(doc.indexOf(bPattern) + bPattern.length, doc.indexOf(ePattern) - (doc.indexOf(bPattern) + bPattern.length) + 1);
-        if (yamgoJson)
-            yamgoJson = showtime.JSONDecode(yamgoJson);
-        else {
-            page.error('Sorry, can\'t get json with the channel list: (');
-            return false;
-        }
-        return true;
-    }
-
-    plugin.addURI(plugin.getDescriptor().id + ":yamgoStart", function(page) {
-        setPageHeader(page, 'Yamgo - tv on the go');
-        page.loading = true;
-        if (!yamgoJson)
-           if (!getYamgoJson()) return;
-
-        var c = 0;
-        for (var i in yamgoJson) {
-            var link = plugin.getDescriptor().id + ':yamgo:' + yamgoJson[i][0].channel_id + ':' + escape(yamgoJson[i][0].channel_name);
-            if (yamgoJson[i][0].channel_type == 'YOUTUBE')
-                link = plugin.getDescriptor().id + ':yamgoYoutube:' + yamgoJson[i][0].channel_id + ':' + escape(yamgoJson[i][0].channel_name);
-            var icon = yamgoJson[i][0].channel_images_tn_large;
-            var title = yamgoJson[i][0].channel_name;
-            var item = page.appendItem(link, "video", {
-	        title: new showtime.RichText(title + ' ' + coloredStr(yamgoJson[i][0].channel_type, orange)),
-                genre: yamgoJson[i][0].channel_metakeywords,
-                icon: icon,
-                description: new showtime.RichText(yamgoJson[i][0].channel_description)
-	    });
-            c++;
-            addToFavoritesOption(item, link, title, icon);
-        };
-        page.metadata.title = new showtime.RichText(page.metadata.title + ' (' + c + ')');
-        page.loading = false;
-    });
 
     // Start page
     plugin.addURI(plugin.getDescriptor().id + ":start", function(page) {
@@ -2034,32 +1619,17 @@
 	page.appendItem(plugin.getDescriptor().id + ":streamliveStart", "directory", {
 	    title: "StreamLive.to"
 	});
-	//page.appendItem(plugin.getDescriptor().id + ":spbStart", "directory", {
-	//    title: "Spbtv.com"
-	//});
 	page.appendItem(plugin.getDescriptor().id + ":divanStart", "directory", {
 	    title: "Divan.tv"
 	});
 	page.appendItem(plugin.getDescriptor().id + ":tivixStart", "directory", {
 	    title: "Tivix.net"
 	});
-	page.appendItem(plugin.getDescriptor().id + ":sputnikStart", "directory", {
-	    title: "Sputniktv.in.ua"
-	});
-	page.appendItem(plugin.getDescriptor().id + ":yooooStart", "directory", {
-	    title: "Yoooo.tv"
-	});
 	page.appendItem(plugin.getDescriptor().id + ":idcStart", "directory", {
 	    title: "Idc.md"
 	});
 	page.appendItem(plugin.getDescriptor().id + ":goAtDeeStart", "directory", {
 	    title: "goATDee.Net"
-	});
-	page.appendItem(plugin.getDescriptor().id + ":drundooStart", "directory", {
-	    title: "DrunDoo.com"
-	});
-	page.appendItem(plugin.getDescriptor().id + ":yamgoStart", "directory", {
-	    title: "Yamgo.com"
 	});
     });
 })(this);
