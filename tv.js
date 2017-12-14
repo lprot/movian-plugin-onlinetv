@@ -362,19 +362,23 @@
             page.error("Sorry, can't get the link :(");
     });
 
-    plugin.addURI(plugin.getDescriptor().id + ":1hd:(.*):(.*)", function(page, url, title) {
+    plugin.addURI(plugin.getDescriptor().id + ":file:(.*):(.*)", function(page, url, title) {
         page.loading = true;
         page.metadata.title = unescape(title);
-        var resp = showtime.httpReq(unescape(url)).toString();
+        var resp = showtime.httpReq('http://' + unescape(url)).toString();
         page.loading = false;
-        var match = resp.match(/file:"([\S\s]*?)"/);
+        var match = resp.match(/'file': "([\S\s]*?)"/);
+	if (!match) match = resp.match(/file: "([\S\s]*?)"/);
+	if (!match) match = resp.match(/file": "([\s\S]*?)"/);
         if (match) {
-             page.type = "video";
+            page.type = "video";
+	    match = match[1].replace(/\\\//g, '/');
+	    if (!match.match(/http:/)) match = 'http:' + match;
             page.source = "videoparams:" + showtime.JSONEncode({
                 title: unescape(title),
-                canonicalUrl: plugin.getDescriptor().id + ':1hd:' + url + ':' + title,
+                canonicalUrl: plugin.getDescriptor().id + ':file:' + url + ':' + title,
                 sources: [{
-                    url: match[1]
+                    url: match
                 }],
                 no_subtitle_scan: true
             });
@@ -472,28 +476,6 @@
                 canonicalUrl: plugin.getDescriptor().id + ':euronews:' + country + ':' + title,
                 sources: [{
                     url: 'hls:' + json.primary
-                }],
-                no_subtitle_scan: true
-            });
-        } else
-             page.error("Sorry, can't get the link :(");
-    });
-
-    plugin.addURI(plugin.getDescriptor().id + ":mediaklikk:(.*):(.*)", function(page, chn, title) {
-        page.loading = true;
-        page.metadata.title = unescape(title);
-        var html = showtime.httpReq('https://player.mediaklikk.hu/playernew/player.php?video=' + chn).toString();
-	html = html.match(/file": "([\s\S]*?)"/);
-        if (html) 
-            html = html[1].replace(/\\\//g, '/')
-	page.loading = false;
-        if (html) {
-            page.type = "video";
-            page.source = "videoparams:" + showtime.JSONEncode({
-                title: unescape(title),
-                canonicalUrl: plugin.getDescriptor().id + ':mediaklikk:' + chn + ':' + title,
-                sources: [{
-                    url: 'hls:http:' + html
                 }],
                 no_subtitle_scan: true
             });
