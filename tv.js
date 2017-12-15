@@ -296,28 +296,6 @@
         page.error("Sorry, can't get the link :(");
     });
 
-    plugin.addURI(plugin.getDescriptor().id + ":uatoday:(.*):(.*)", function(page, url, title) {
-        page.loading = true;
-        page.metadata.title = unescape(title);
-        var resp = showtime.httpReq(unescape(url)).toString();
-        page.loading = false;
-        var match = resp.match(/player.online[\S\s]*?http[\S\s]*?http([\S\s]*?)'/);
-        if (match) {
-            page.type = "video";
-            page.source = "videoparams:" + showtime.JSONEncode({
-                title: unescape(title),
-                canonicalUrl: plugin.getDescriptor().id + ':uatoday:' + url + ':' + title,
-                sources: [{
-                    url: 'hls:http' + match[1]
-                }],
-                no_subtitle_scan: true
-            });
-        } else {
-            page.metadata.title = unescape(title);
-            page.error("Sorry, can't get the link :(");
-        }
-    });
-
     plugin.addURI(plugin.getDescriptor().id + ":acestream:(.*):(.*)", function(page, id, title) {
         page.type = "video";
         page.source = "videoparams:" + showtime.JSONEncode({
@@ -385,25 +363,6 @@
         } else page.error("Sorry, can't get the link :(");
     });
 
-    plugin.addURI(plugin.getDescriptor().id + ":jampo:(.*):(.*)", function(page, url, title) {
-        page.loading = true;
-        page.metadata.title = unescape(title);
-        var resp = showtime.httpReq("http://tv.jampo.tv/play/channel/" + unescape(url)).toString();
-        page.loading = false;
-        var match = resp.match(/"st=([\S\s]*?)\&/);
-        if (match) {
-            page.type = "video";
-            page.source = "videoparams:" + showtime.JSONEncode({
-                title: unescape(title),
-                canonicalUrl: plugin.getDescriptor().id + ':jampo:' + url + ':' + title,
-                sources: [{
-                    url: 'hls:' + showtime.JSONDecode(unhash(match[1])).file
-                }],
-                no_subtitle_scan: true
-            });
-        } else page.error("Sorry, can't get the link :(");
-    });
-
     plugin.addURI(plugin.getDescriptor().id + ":glaz:(.*):(.*)", function(page, url, title) {
         page.loading = true;
         page.metadata.title = unescape(title);
@@ -427,19 +386,63 @@
         page.loading = true;
         page.metadata.title = unescape(title);
         var resp = showtime.httpReq('http://' + unescape(url)).toString();
+        var match = resp.match(/url: '([\S\s]*?)'/);
+        if (!match) match = resp.match(/source: '([\S\s]*?)'/);
         page.loading = false;
-        var match = resp.match(/source: '([\S\s]*?)'/);
-            if (match) {
-                page.type = "video";
-                page.source = "videoparams:" + showtime.JSONEncode({
-                    title: unescape(title),
-                    canonicalUrl: plugin.getDescriptor().id + ':trk:' + url + ':' + title,
-                    sources: [{
-                        url: 'hls:' + match[1]
-                    }],
-                    no_subtitle_scan: true
-                });
-            } else page.error("Sorry, can't get the link :(");
+        if (match) {
+            page.type = "video";
+            page.source = "videoparams:" + showtime.JSONEncode({
+                title: unescape(title),
+                canonicalUrl: plugin.getDescriptor().id + ':trk:' + url + ':' + title,
+                sources: [{
+                    url: 'hls:' + match[1]
+                }],
+                no_subtitle_scan: true
+            });
+         } else page.error("Sorry, can't get the link :(");
+    });
+
+    var cosmonovaHeadersAreSet = false;
+    plugin.addURI(plugin.getDescriptor().id + ":cosmonova:(.*):(.*)", function(page, url, title) {
+        page.loading = true;
+        page.metadata.title = unescape(title);
+        if (!cosmonovaHeadersAreSet) {
+            plugin.addHTTPAuth('.*cosmonova\\.net\\.ua.*', function(req) {
+                req.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36');
+                req.setHeader('referer', 'http://live-uapershiy.cosmonova.kiev.ua/online.php?width=743&height=417&lang=ua&autostart=0');
+            });
+            cosmonovaHeadersAreSet = true;
+        }
+        page.loading = false;
+        page.type = "video";
+        page.source = "videoparams:" + showtime.JSONEncode({
+            title: unescape(title),
+            canonicalUrl: plugin.getDescriptor().id + ':cosmonova:' + url + ':' + title,
+            sources: [{
+                url: 'hls:' + unescape(url)
+            }],
+            no_subtitle_scan: true
+        });
+    });
+
+    plugin.addURI(plugin.getDescriptor().id + ":dailymotion:(.*):(.*)", function(page, url, title) {
+        page.loading = true;
+        page.metadata.title = unescape(title);
+        var resp = showtime.httpReq('http://www.dailymotion.com/embed/video/' + url).toString();
+        var match = resp.match(/stream_chromecast_url":"([\S\s]*?)"/);
+        page.loading = false;
+        if (match) {
+            match = match[1].replace(/\\\//g, '/');
+            page.type = "video";
+            page.source = "videoparams:" + showtime.JSONEncode({
+                title: unescape(title),
+                canonicalUrl: plugin.getDescriptor().id + ':dailymotion:' + url + ':' + title,
+                sources: [{
+                    url: match.match(/m3u8/) ? 'hls:' + match : match
+                }],
+                no_subtitle_scan: true
+            });
+        } else page.error("Sorry, can't get the link :(");
     });
 
     plugin.addURI(plugin.getDescriptor().id + ":gamax:(.*):(.*)", function(page, url, title) {
@@ -788,7 +791,10 @@
                     }
                     break;
                 default:
-                    if (line[0] == '#') continue; // skip unknown tags
+                    if (line[0] == '#') {
+                        m3uImage = '';
+			continue; // skip unknown tags and comments   
+                    }
                     line = line.replace(/rtmp:\/\/\$OPT:rtmp-raw=/, '');
                     if (line.indexOf(':') == -1 && line.length == 40)
                         line = 'acestream://' + line;
