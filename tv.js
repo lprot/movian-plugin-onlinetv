@@ -150,27 +150,6 @@
         page.loading = false;
     });
 
-    plugin.addURI(plugin.getDescriptor().id + ":ntv:(.*):(.*)", function(page, url, title) {
-        page.loading = true;
-        var resp = showtime.httpReq(unescape(url)).toString();
-        page.loading = false;
-        var match = resp.match(/hlsURL = '([\S\s]*?)'/);
-        if (match) {
-            page.type = "video";
-            page.source = "videoparams:" + showtime.JSONEncode({
-                title: unescape(title),
-                canonicalUrl: plugin.getDescriptor().id + ':ntv:' + url + ':' + title,
-                sources: [{
-                    url: 'hls:' + match[1]
-                }],
-                no_subtitle_scan: true
-            });
-        } else {
-            page.metadata.title = unescape(title);
-            page.error("Sorry, can't get the link :(");
-        }
-    });
-
     function roughSizeOfObject(object) {
         var objectList = [];
         var recurse = function(value) {
@@ -348,58 +327,24 @@
         var match = resp.match(/'file': "([\S\s]*?)"/);
 	if (!match) match = resp.match(/file: "([\S\s]*?)"/);
 	if (!match) match = resp.match(/file": "([\s\S]*?)"/);
+        if (!match) match = resp.match(/hlsURL = '([\S\s]*?)'/); // ntv
+        if (!match) match = resp.match(/url: '([\S\s]*?)'/); // trk ukraine
+        if (!match) match = resp.match(/source: '([\S\s]*?)'/); // donbass tv
+	if (!match) match = resp.match(/src: '([\S\s]*?)'/); // fashion tv
+	if (!match) match = resp.match(/liveurl = "([\s\S]*?)"/); // zvezda
         if (match) {
             page.type = "video";
 	    match = match[1].replace(/\\\//g, '/');
-	    if (!match.match(/http:/)) match = 'http:' + match;
+	    if (!match.match(/http:/) && !match.match(/https:/)) match = 'http:' + match;
             page.source = "videoparams:" + showtime.JSONEncode({
                 title: unescape(title),
                 canonicalUrl: plugin.getDescriptor().id + ':file:' + url + ':' + title,
                 sources: [{
-                    url: match
+                    url: match.match(/m3u8/) ? 'hls:' + match : match
                 }],
                 no_subtitle_scan: true
             });
         } else page.error("Sorry, can't get the link :(");
-    });
-
-    plugin.addURI(plugin.getDescriptor().id + ":glaz:(.*):(.*)", function(page, url, title) {
-        page.loading = true;
-        page.metadata.title = unescape(title);
-        var resp = showtime.httpReq("http://www.glaz.tv/online-tv/" + unescape(url)).toString();
-        page.loading = false;
-        var match = resp.match(/file=([\S\s]*?)\"/);
-        if (match) {
-            page.type = "video";
-            page.source = "videoparams:" + showtime.JSONEncode({
-                title: unescape(title),
-                canonicalUrl: plugin.getDescriptor().id + ':glaz:' + url + ':' + title,
-                sources: [{
-                    url: match[1].match(/m3u8/) ? 'hls:' + match[1] : match[1]
-                }],
-                no_subtitle_scan: true
-            });
-       } else page.error("Sorry, can't get the link :(");
-    });
-
-    plugin.addURI(plugin.getDescriptor().id + ":trk:(.*):(.*)", function(page, url, title) {
-        page.loading = true;
-        page.metadata.title = unescape(title);
-        var resp = showtime.httpReq('http://' + unescape(url)).toString();
-        var match = resp.match(/url: '([\S\s]*?)'/);
-        if (!match) match = resp.match(/source: '([\S\s]*?)'/);
-        page.loading = false;
-        if (match) {
-            page.type = "video";
-            page.source = "videoparams:" + showtime.JSONEncode({
-                title: unescape(title),
-                canonicalUrl: plugin.getDescriptor().id + ':trk:' + url + ':' + title,
-                sources: [{
-                    url: 'hls:' + match[1]
-                }],
-                no_subtitle_scan: true
-            });
-         } else page.error("Sorry, can't get the link :(");
     });
 
     var cosmonovaHeadersAreSet = false;
