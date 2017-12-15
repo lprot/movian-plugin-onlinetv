@@ -172,12 +172,26 @@
         return recurse(object);
     }
 
+    var divanHeadersAreSet = false;
+    function setDivanHeaders() {
+        if (!divanHeadersAreSet) {
+            plugin.addHTTPAuth('.*divan\\.tv', function(req) {
+                req.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36');
+            });
+            plugin.addHTTPAuth('.*divan\\.tv.*', function(req) {
+                req.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36');
+            });
+            divanHeadersAreSet = true;
+        }
+    }
+
     plugin.addURI(plugin.getDescriptor().id + ":divan:(.*):(.*)", function(page, url, title) {
         page.loading = true;
         setDivanHeaders();
         var resp = showtime.httpReq(unescape(url).match(/http/) ? unescape(url) : 'http://divan.tv' + unescape(url)).toString();
         var match = resp.match(/file: "([\S\s]*?)"/);
         if (!match) match = resp.match(/stream: "([\S\s]*?)"/);
+	if (!match) match = resp.match(/live_link = '([\S\s]*?)'/);
         if (match) {
             var n = 0;
             while (n < 5)
@@ -207,30 +221,6 @@
         page.loading = false;
     });
 
-    plugin.addURI(plugin.getDescriptor().id + ":tonis:(.*):(.*)", function(page, url, title) {
-        page.loading = true;
-        var resp = showtime.httpReq(unescape(url)).toString();
-        page.loading = false;
-        var match = resp.match(/src='(http:\/\/media.wnet.ua\/tonis\/player[\s\S]*?)'/);
-        if (match) {
-            resp = showtime.httpReq(match[1]).toString();
-            var key = resp.match(/"(\?s=[\s\S]*?)"/)[1];
-            var link = resp.match(/url: "([\s\S]*?)"/)[1] + key;
-            page.type = "video";
-            page.source = "videoparams:" + showtime.JSONEncode({
-                title: unescape(title),
-                canonicalUrl: plugin.getDescriptor().id + ':tonis:' + url + ':' + title,
-                sources: [{
-                    url: 'hls:' + link.replace('manifest.f4m', 'master.m3u8')
-                }],
-                no_subtitle_scan: true
-            });
-        } else {
-            page.metadata.title = unescape(title);
-            page.error("Sorry, can't get the link :(");
-        }
-    });
-
     plugin.addURI(plugin.getDescriptor().id + ":tivix:(.*):(.*)", function(page, url, title) {
         page.loading = true;
         var resp = showtime.httpReq(unescape(url)).toString();
@@ -241,6 +231,10 @@
             re = /skin" src="([\S\s]*?)"/g;
             match = re.exec(resp);
         }
+        if (!match) {
+            re = /<span id="srces" style="display:none">([\S\s]*?)</g;
+            match = re.exec(resp);
+        }
         while (match) {
             page.loading = true;
             if (showtime.probe(match[1]).result) {
@@ -248,7 +242,7 @@
                 continue;
             }
             if (match[1].match(/rtmp/))
-                var link = unescape(match[1]) + ' swfUrl=http://tivix.net' + resp.match(/data="(.*)"/)[1] + ' pageUrl=' + unescape(url);
+                var link = unescape(match[1]) + ' swfUrl=http://tivix.co' + resp.match(/data="(.*)"/)[1] + ' pageUrl=' + unescape(url);
             else
                 var link = match[1].match('m3u8') ? 'hls:' + unescape(match[1]) : unescape(match[1]);
 
@@ -505,7 +499,7 @@
 
     plugin.addURI(plugin.getDescriptor().id + ":indexTivix:(.*):(.*)", function(page, url, title) {
         setPageHeader(page, decodeURIComponent(title));
-        var url = prefixUrl = 'http://tivix.net' + decodeURIComponent(url);
+        var url = prefixUrl = 'http://tivix.co' + decodeURIComponent(url);
         var tryToSearch = true, fromPage = 1, n = 0;
 
         function loader() {
@@ -514,11 +508,11 @@
             var doc = showtime.httpReq(url).toString();
             page.loading = false;
             // 1-title, 2-url, 3-icon
-            var re = /<div class="all_tv" title="([\S\s]*?)">[\S\s]*?<a href="([\S\s]*?)">[\S\s]*?<img src="([\S\s]*?)"/g;
+            var re = /<div class="all_tv" title="([\S\s]*?)">[\S\s]*?href="([\S\s]*?)"[\S\s]*?<img src="([\S\s]*?)"/g;
             var match = re.exec(doc);
             while (match) {
                 var link = plugin.getDescriptor().id + ":tivix:" + escape(match[2]) + ':' + escape(match[1]);
-                var icon = 'http://tivix.net' + match[3];
+                var icon = 'http://tivix.co' + match[3];
                 var item = page.appendItem(link, "video", {
                     title: match[1],
                     icon: icon
@@ -541,9 +535,9 @@
     });
 
     plugin.addURI(plugin.getDescriptor().id + ":tivixStart", function(page) {
-        setPageHeader(page, 'Tivix.net');
+        setPageHeader(page, 'Tivix.co');
         page.loading = true;
-        var doc = showtime.httpReq('http://tivix.net').toString();
+        var doc = showtime.httpReq('http://tivix.co').toString();
         page.loading = false;
         var re = /<div class="menuuuuuu"([\S\s]*?)<\/div>/g;
         var menus = re.exec(doc);
@@ -1162,7 +1156,7 @@
             req.setHeader('Referer', url);
         });
 
-        var url = 'http://www.streamlive.to/channels';
+        var url = 'https://www.streamlive.to/channels?list=free';
         var doc = showtime.httpReq(url).toString();
 
         n = 1, tryToSearch = true;
@@ -1505,19 +1499,6 @@
         page.loading = false;
     });
 
-    var divanHeadersAreSet = false;
-    function setDivanHeaders() {
-        if (!divanHeadersAreSet) {
-            plugin.addHTTPAuth('.*divan\\.tv', function(req) {
-                req.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36');
-            });
-            plugin.addHTTPAuth('.*divan\\.tv.*', function(req) {
-                req.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36');
-            });
-            divanHeadersAreSet = true;
-        }
-    }
-
     // Start page
     plugin.addURI(plugin.getDescriptor().id + ":start", function(page) {
         setPageHeader(page, plugin.getDescriptor().title);
@@ -1549,17 +1530,17 @@
         page.appendItem("", "separator", {
             title: 'Providers'
         });
-	page.appendItem(plugin.getDescriptor().id + ":streamliveStart", "directory", {
-	    title: "StreamLive.to"
-	});
 	page.appendItem(plugin.getDescriptor().id + ":divanStart", "directory", {
 	    title: "Divan.tv"
 	});
 	page.appendItem(plugin.getDescriptor().id + ":tivixStart", "directory", {
-	    title: "Tivix.net"
+	    title: "Tivix.co"
 	});
 	page.appendItem(plugin.getDescriptor().id + ":idcStart", "directory", {
 	    title: "Idc.md"
+	});
+	page.appendItem(plugin.getDescriptor().id + ":streamliveStart", "directory", {
+	    title: "StreamLive.to"
 	});
 	page.appendItem(plugin.getDescriptor().id + ":goAtDeeStart", "directory", {
 	    title: "goATDee.Net"
