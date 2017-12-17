@@ -20,7 +20,8 @@
 
 (function(plugin) {
     var logo = plugin.path + "logo.png";
-
+    var UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.84 Safari/537.36';
+    
     function setPageHeader(page, title) {
 	page.type = "directory";
 	page.contents = "items";
@@ -79,22 +80,22 @@
 
     var settings = plugin.createSettings(plugin.getDescriptor().title, logo, plugin.getDescriptor().title);
 
-    settings.createBool('dontShowAdult', "Don't show adult channels", true, function(v) {
+    settings.createBool('dontShowAdult', "Don't show adult channels", false, function(v) {
         service.dontShowAdult = v;
     });
-
     settings.createBool('disableSampleList', "Don't show Sample M3U list", false, function(v) {
         service.disableSampleList = v;
     });
 
-    settings.createBool('disableSampleXMLList', "Don't show Sample XML list", true, function(v) {
+    settings.createBool('disableSampleXMLList', "Don't show Sample XML list", false, function(v) {
         service.disableSampleXMLList = v;
     });
-
+    settings.createBool('disableEPG', "Don't fetch EPG", true, function(v) {
+        service.disableEPG = v;
+    });
     settings.createString('acestreamIp', "IP address of AceStream Proxy. Enter IP only.",  '192.168.0.93', function(v) {
         service.acestreamIp = v;
     });
-
     settings.createAction("cleanFavorites", "Clean My Favorites", function () {
         store.list = "[]";
         showtime.notify('Favorites has been cleaned successfully', 2);
@@ -107,7 +108,6 @@
     var playlists = plugin.createStore('playlists', true);
     if (!playlists.list)
         playlists.list = "[]";
-
 
     function addToFavoritesOption(item, link, title, icon) {
         item.link = link;
@@ -176,10 +176,10 @@
     function setDivanHeaders() {
         if (!divanHeadersAreSet) {
             plugin.addHTTPAuth('.*divan\\.tv', function(req) {
-                req.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36');
+                req.setHeader('User-Agent', UA);
             });
             plugin.addHTTPAuth('.*divan\\.tv.*', function(req) {
-                req.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36');
+                req.setHeader('User-Agent', UA);
             });
             divanHeadersAreSet = true;
         }
@@ -347,7 +347,7 @@
         page.metadata.title = unescape(title);
         if (!cosmonovaHeadersAreSet) {
             plugin.addHTTPAuth('.*cosmonova\\.net\\.ua.*', function(req) {
-                req.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36');
+                req.setHeader('User-Agent', UA);
                 req.setHeader('referer', 'http://live-uapershiy.cosmonova.kiev.ua/online.php?width=743&height=417&lang=ua&autostart=0');
             });
             cosmonovaHeadersAreSet = true;
@@ -637,7 +637,7 @@
 
         if (!list || !list.toString()) {
             page.appendPassiveItem("directory", '', {
-                title: "You can add M3U & XML playlists via the page menu"
+                title: "You can add your M3U or XML playlist in the right side menu"
             });
         }
         var pos = 0;
@@ -949,6 +949,7 @@
 
     function getEpg(region, channelId) {
         var description = '';
+        if (service.disableEPG) return description;
         try {
             var epg = showtime.httpReq('https://tv.yandex.ua/' + region + '/channels/' + channelId);
             // 1-time, 2-title
@@ -1104,7 +1105,7 @@
             streamer = direct[1];
             no_subtitle_scan = false;
             plugin.addHTTPAuth('.*od\\.streamlive\\.to.*', function(req) {
-                req.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36');
+                req.setHeader('User-Agent', UA);
                 req.setHeader('Host', 'od.streamlive.to');
                 req.setHeader('Referer', streamer);
             });
@@ -1114,7 +1115,7 @@
                      headers: {
                          Host: 'www.streamlive.to',
                          Referer: unescape(url),
-                         'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/43.0.2357.130 Safari/537.36',
+                         'User-Agent': UA,
                          'X-Requested-With': 'XMLHttpRequest'
                      }
             })).token;
@@ -1143,14 +1144,14 @@
         page.loading = true;
 
         plugin.addHTTPAuth('.*streamlive\\.to', function(req) {
-            req.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36');
+            req.setHeader('User-Agent', UA);
             req.setHeader('Host', 'www.streamlive.to');
             req.setHeader('Origin', 'http://www.streamlive.to');
             req.setHeader('Referer', url);
         });
 
         plugin.addHTTPAuth('.*streamlive\\.to.*', function(req) {
-            req.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 6.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2228.0 Safari/537.36');
+            req.setHeader('User-Agent', UA);
             req.setHeader('Host', 'www.streamlive.to');
             req.setHeader('Origin', 'http://www.streamlive.to');
             req.setHeader('Referer', url);
@@ -1396,7 +1397,7 @@
                     headers: {
                         Host: 'www.sawlive.tv',
                         Referer: 'http://goatd.net/' + unescape(url),
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/43.0.2357.65 Safari/537.36'
+                        'User-Agent': UA
                     }
                 }).toString();
                 if (doc.match(/y3s=/)) {
@@ -1411,7 +1412,7 @@
                         headers: {
                             Host: 'www.sawlive.tv',
                             Referer: 'http://goatd.net/' + unescape(url),
-                           'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/43.0.2357.65 Safari/537.36'
+                           'User-Agent': UA
                        }
                     }).toString();
                 }
@@ -1432,7 +1433,7 @@
                                 headers: {
                                     Host: 'www.sawlive.tv',
                                     Referer: 'http://goatd.net/' + unescape(url),
-                                    'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/43.0.2357.65 Safari/537.36'
+                                    'User-Agent': UA
                                 }
                             }).toString();
                             var streamer = doc.match(/'streamer', '([\s\S]*?)'/);
@@ -1542,8 +1543,8 @@
 	page.appendItem(plugin.getDescriptor().id + ":streamliveStart", "directory", {
 	    title: "StreamLive.to"
 	});
-	page.appendItem(plugin.getDescriptor().id + ":goAtDeeStart", "directory", {
-	    title: "goATDee.Net"
-	});
+	//page.appendItem(plugin.getDescriptor().id + ":goAtDeeStart", "directory", {
+	//    title: "goATDee.Net"
+	//});
     });
 })(this);
