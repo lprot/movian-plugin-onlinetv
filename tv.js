@@ -1199,14 +1199,15 @@
             match = re.exec(doc);
             var added = 0;
             while (match) {
+showtime.print(match[5]);
                 page.appendItem(PREFIX + ':streamlive:' + escape(match[2]) + ':' + escape(trim(match[3])), "video", {
                     title: trim(match[3]),
                     icon: 'https:' + match[1],
                     genre: trim(match[7]),
                     description: new showtime.RichText(
-                        trim(match[4]) ? coloredStr('Description: ', orange) + trim(match[4]) : '' +
+                        (trim(match[4]) ? coloredStr('Now: ', orange) + trim(match[4].replace(/&nbsp;/g, '')).replace(/^"|"$/g, '') : '') +
                         coloredStr('\nViewers: ', orange) + trim(match[5]) +
-                        coloredStr('\nTotal views: ', orange) + trim(match[6]) +
+                        coloredStr(' Total views: ', orange) + trim(match[6]) +
                         coloredStr('\nLanguage: ', orange) + trim(match[8]))
                 });
                 match = re.exec(doc);
