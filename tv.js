@@ -1199,7 +1199,6 @@
             match = re.exec(doc);
             var added = 0;
             while (match) {
-showtime.print(match[5]);
                 page.appendItem(PREFIX + ':streamlive:' + escape(match[2]) + ':' + escape(trim(match[3])), "video", {
                     title: trim(match[3]),
                     icon: 'https:' + match[1],
@@ -1534,6 +1533,22 @@ showtime.print(match[5]);
         addActionToTheItem(page, 'Add M3U playlist', '1Hbuve6', 'M3U');
         addActionToTheItem(page, 'Add XML playlist', '1zVA91a', 'XML');
 
+        // menu to delete playlists
+        page.options.createAction('rmPlaylist', 'Remove playlist...', function() {
+            var list = eval(playlists.list);
+            for (var i in list) {
+                var result = showtime.message("Do you want to remove '" + decodeURIComponent(showtime.JSONDecode(list[i]).title) + "' playlist?", true, true);
+                if (result) {
+                    showtime.notify("'" + decodeURIComponent(showtime.JSONDecode(list[i]).title) + "' has been removed from from the list.", 2);
+                    list.splice(i, 1);
+                    playlists.list = showtime.JSONEncode(list);
+                    page.flush();
+	            page.redirect(PREFIX + ':start');
+                }
+            }
+            if (!i) showtime.notify('There are no playlists to delete.', 2);
+        });
+
         if (!service.disableSampleList) {
             var item = page.appendItem('m3u:http%3A%2F%2Fbit.ly%2F1Hbuve6:Sample M3U list', "directory", {
                 title: 'Sample M3U list'
@@ -1551,6 +1566,9 @@ showtime.print(match[5]);
         page.appendItem("", "separator", {
             title: 'Providers'
         });
+	page.appendItem(PREFIX + ":streamliveStart", "directory", {
+	    title: "StreamLive.to"
+	});
 	page.appendItem(PREFIX + ":divanStart", "directory", {
 	    title: "Divan.tv"
 	});
@@ -1559,9 +1577,6 @@ showtime.print(match[5]);
 	});
 	page.appendItem(PREFIX + ":idcStart", "directory", {
 	    title: "Idc.md"
-	});
-	page.appendItem(PREFIX + ":streamliveStart", "directory", {
-	    title: "StreamLive.to"
 	});
 	//page.appendItem(PREFIX + ":goAtDeeStart", "directory", {
 	//    title: "goATDee.Net"
