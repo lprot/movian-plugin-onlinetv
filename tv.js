@@ -681,7 +681,7 @@
         for (var i in m3uItems) {
             if (decodeURIComponent(groupID) != m3uItems[i].group)
                 continue;
-            addItem(page, m3uItems[i].url, m3uItems[i].title, m3uItems[i].logo);
+            addItem(page, m3uItems[i].url, m3uItems[i].title, m3uItems[i].logo, '', '', '', m3uItems[i].useragent);
             num++;
         }
         page.metadata.title = decodeURIComponent(groupID) + ' (' + num + ')';
@@ -695,7 +695,7 @@
         theLastList = pl;
         m3uItems = [], groups = [];
         var m3uUrl = '', m3uTitle = '', m3uImage = '', m3uGroup = '';
-        var line = '', m3uRegion = '', m3uEpgId = '';
+        var line = '', m3uRegion = '', m3uEpgId = '', m3uUserAgent = '';
         for (var i = 0; i < m3u.length; i++) {
             page.metadata.title = 'Parsing M3U list. Line ' + i + ' of ' + m3u.length;
             line = m3u[i].trim();
@@ -740,29 +740,37 @@
                 default:
                     if (line[0] == '#') {
                         m3uImage = '';
-			continue; // skip unknown tags and comments   
+			continue; // skip unknown tags and comments
                     }
                     line = line.replace(/rtmp:\/\/\$OPT:rtmp-raw=/, '');
                     if (line.indexOf(':') == -1 && line.length == 40)
                         line = 'acestream://' + line;
                     if (m3uImage && m3uImage.substr(0, 4) != 'http')
                         m3uImage = line.match(/^.+?[^\/:](?=[?\/]|$)/) + '/' + m3uImage;
+                    tmp = line.split('|');
+                    if (tmp[1]) {
+                        line = tmp[0];
+                        tmp = tmp[1].match(/User-Agent=([\s\S]*>?)/);
+                        if (tmp) 
+                            m3uUserAgent = tmp[1].replace(/\"/g, '');
+                    }
                     m3uItems.push({
                         title: m3uTitle ? m3uTitle : line,
                         url: line,
                         group: m3uGroup,
                         logo: m3uImage,
                         region: m3uRegion,
-                        epgid: m3uEpgId
+                        epgid: m3uEpgId,
+                        useragent: m3uUserAgent
                     });
-                    m3uUrl = '', m3uTitle = '', m3uImage = '', m3uEpgId = '';//, m3uGroup = '';
+                    m3uUrl = '', m3uTitle = '', m3uImage = '', m3uEpgId = '', m3uUserAgent = '';//, m3uGroup = '';
             }
         }
         page.metadata.title = new showtime.RichText(tmp);
         page.loading = false;
     }
 
-    function addItem(page, url, title, icon, description, genre, epgForTitle) {
+    function addItem(page, url, title, icon, description, genre, epgForTitle, useragent) {
         if (!epgForTitle) epgForTitle = '';
         // try to detect item type
         var match = url.match(/([\s\S]*?):(.*)/);
@@ -799,6 +807,11 @@
                 description: new showtime.RichText(description)
             });
         } else {
+            if (useragent) {
+                plugin.addHTTPAuth('.*' + url.replace('http://','').replace('https://','').split(/[/?#]/)[0].replace(/\./g, '\\.') + '.*', function(req) {
+                    req.setHeader('User-Agent', useragent);
+                });
+            }
             var item = page.appendItem(link, type, {
                 title: new showtime.RichText(title  + epgForTitle),
                 icon: icon ? icon : null,
@@ -835,7 +848,7 @@
                 var description = '';
                 if (m3uItems[i].region && m3uItems[i].epgid)
                     description = getEpg(m3uItems[i].region, m3uItems[i].epgid);
-                addItem(page, m3uItems[i].url, m3uItems[i].title, m3uItems[i].logo, description, '', epgForTitle);
+                addItem(page, m3uItems[i].url, m3uItems[i].title, m3uItems[i].logo, description, '', epgForTitle, m3uItems[i].useragent);
                 epgForTitle = '';
                 num++;
             }
