@@ -196,16 +196,24 @@
     plugin.addURI(PREFIX + ":divan:(.*):(.*)", function(page, url, title) {
         page.loading = true;
         setDivanHeaders();
-        var resp = showtime.httpReq(unescape(url).match(/http/) ? unescape(url) : 'http://divan.tv' + unescape(url)).toString();
+        var referer = unescape(url).match(/http/) ? unescape(url) : 'http://divan.tv' + unescape(url);
+        var resp = showtime.httpReq(referer).toString();
         var match = resp.match(/file: "([\S\s]*?)"/);
         if (!match) match = resp.match(/stream: "([\S\s]*?)"/);
 	if (!match) match = resp.match(/live_link = '([\S\s]*?)'/);
         if (match) {
+            var host = match[1].replace('http://','').replace('https://','').split(/[/?#]/)[0];
+            plugin.addHTTPAuth('.*' + host.replace(/\./g, '\\.') + '.*', function(req) {
+	        req.setHeader('Host', host);
+                req.setHeader('Origin', 'http://divan.tv');
+                req.setHeader('Referer', referer);
+                req.setHeader('User-Agent', UA);
+            });
+
             var n = 0;
             while (n < 5)
                 try {
-                    //var size = roughSizeOfObject(showtime.httpReq(match[1]));
-                    //showtime.print(unescape(title) + ': Got ' + size + ' bytes');
+                    showtime.print('Requesting: ' + match[1]);
                     showtime.httpReq(match[1])
                     break;
                 } catch(err) {
@@ -1582,9 +1590,9 @@
 	page.appendItem(PREFIX + ":streamliveStart", "directory", {
 	    title: "StreamLive.to"
 	});
-	page.appendItem(PREFIX + ":divanStart", "directory", {
-	    title: "Divan.tv"
-	});
+	//page.appendItem(PREFIX + ":divanStart", "directory", {
+	//    title: "Divan.tv"
+	//});
 	page.appendItem(PREFIX + ":tivixStart", "directory", {
 	    title: "Tivix.co"
 	});
