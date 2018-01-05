@@ -17,7 +17,6 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-
 (function(plugin) {
     var PREFIX = plugin.getDescriptor().id;
     var logo = plugin.path + "logo.png";
@@ -508,7 +507,7 @@
                         line = tmp[0];
                         tmp = tmp[1].match(/User-Agent=([\s\S]*>?)/);
                         if (tmp) 
-                            m3uUserAgent = tmp[1].replace(/\"/g, '');
+                            m3uUserAgent = unescape(tmp[1].replace(/\"/g, ''));
                     }
                     m3uItems.push({
                         title: m3uTitle ? m3uTitle : line,
@@ -832,7 +831,7 @@
     });
 
     function log(str) {
-        if (service.debug) showtime.print(str);
+        if (service.debug) showtime.trace(str);
     }
 
     // Search IMDB ID by title
@@ -1157,7 +1156,7 @@ RULhTbdULa(document[_0x3703[1]](_0x3704[1]))
                     Host: 'www.sawlive.tv',
                     Referer: 'http://goatd.net/' + unescape(url),
                     'User-Agent': UA
-                }, debug: true
+                }, debug: service.debug
             }).toString();
 
             // 1-streamer, 2-playpath
