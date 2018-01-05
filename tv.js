@@ -58,10 +58,10 @@
     settings.createString('acestreamIp', "IP address of AceStream Proxy. Enter IP only.",  '192.168.0.93', function(v) {
         service.acestreamIp = v;
     });
-    settings.createAction("cleanFavorites", "Clean My Favorites", function () {
-        store.list = "[]";
-        showtime.notify('Favorites has been cleaned successfully', 2);
-    });
+    //settings.createAction("cleanFavorites", "Clean My Favorites", function () {
+    //    store.list = "[]";
+    //    showtime.notify('Favorites has been cleaned successfully', 2);
+    //});
 
     var store = plugin.createStore('favorites', true);
     if (!store.list)
@@ -1158,6 +1158,7 @@ RULhTbdULa(document[_0x3703[1]](_0x3704[1]))
                     'User-Agent': UA
                 }, debug: service.debug
             }).toString();
+            log(doc);
 
             // 1-streamer, 2-playpath
             match = doc.match(/sowrite\("[\s\S]*?", "([\s\S]*?)", "([\s\S]*?)"/);
@@ -1168,6 +1169,7 @@ RULhTbdULa(document[_0x3703[1]](_0x3704[1]))
         }
         page.loading = false;
         if (link) {
+            log(link);
             link = "videoparams:" + showtime.JSONEncode({
                 title: unescape(title),
                 no_fs_scan: true,
