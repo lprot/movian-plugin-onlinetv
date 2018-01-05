@@ -395,6 +395,97 @@
         }
     });
 
+    var devId = 0;
+    if (!devId) 
+        devId = "xxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx".replace(/[xy]/g, function(t) {
+        var e = 16 * Math.random() | 0, n = "x" == t ? e : 3 & e | 8;
+        return n.toString(16)
+    });
+
+    plugin.addURI(PREFIX + ":playYoutv:(.*):(.*)", function(page, url, title) {
+        page.loading = true;
+        page.type = 'video';
+        var json = showtime.JSONDecode(showtime.httpReq(unescape(url), {
+            headers: {
+               'Device-Uuid': devId,
+                Host: 'api.youtv.com.ua',
+                Origin: 'https://youtv.com.ua',
+                Referer: 'https://youtv.com.ua/',
+                'User-Agent': UA,
+                'X-Requested-With': 'XMLHttpRequest'
+            }, 
+            debug: service.debug
+        }));
+
+        var link = 'https:' + json.playback_url;
+        
+        plugin.addHTTPAuth('.*' + link.replace('http://','').replace('https://','').split(/[/?#]/)[0].replace(/\./g, '\\.') + '.*', function(req) {
+            req.setHeader('Referer', 'https://youtv.com.ua/');
+            req.setHeader('X-Requested-With', 'ShockwaveFlash/28.0.0.126');
+            req.setHeader('User-Agent', UA);
+        });
+        page.source = "videoparams:" + showtime.JSONEncode({
+            title: unescape(title),
+            no_fs_scan: true,
+            canonicalUrl: PREFIX + ':playYoutv:' + url + ':' + title,
+            sources: [{
+                url: 'hls:' + link
+            }],
+            no_subtitle_scan: true
+        });
+        page.loading = false;
+    });
+
+    plugin.addURI(PREFIX + ":youtvStart", function(page) {
+        setPageHeader(page, 'Youtv.com.ua');
+        page.loading = true;
+        var doc = showtime.httpReq('https://youtv.com.ua/api/start', {
+            headers: {
+                Accept: 'application/vnd.youtv.v3+json',
+                'Device-Uuid': devId,
+                Host: 'youtv.com.ua',
+                Referer: 'https://youtv.com.ua/',
+                'User-Agent': UA,
+                'X-Requested-With': 'XMLHttpRequest'
+            }, 
+            debug: service.debug
+        }).toString();
+        log(doc);
+
+        var json = showtime.JSONDecode(showtime.httpReq('https://youtv.com.ua/api/playlist', {
+            headers: {
+                Accept: 'application/vnd.youtv.v3+json',
+                'Device-Uuid': devId,
+                Host: 'youtv.com.ua',
+                Origin: 'https://youtv.com.ua',
+                Referer: 'https://youtv.com.ua/',
+                'User-Agent': UA,
+                'X-Requested-With': 'XMLHttpRequest'
+            }, 
+            postdata: {},
+            debug: service.debug
+        }));
+        
+        for (var i in json.data) {
+            var genres = '', first = 1;
+            for (var j in json.data[i].categories) {
+                if (first) {
+                    genres += json.data[i].categories[j].name;
+                    first--;
+                } else 
+                    genres += ', ' + json.data[i].categories[j].name;
+            }
+            page.appendItem(PREFIX + ':playYoutv:' + escape(json.data[i].sources[0].stream.url) + ':' + escape(json.data[i].name), 'video', {
+                title: new showtime.RichText(json.data[i].name),
+                genre: genres,
+                icon: json.data[i].image
+            });
+            page.entries++;                          
+        }
+        page.metadata.title += ' (' + page.entries + ')';
+        page.loading = false;
+    });
+
     function showPlaylist(page) {
 	var list = eval(playlists.list);
 
@@ -1264,6 +1355,9 @@ RULhTbdULa(document[_0x3703[1]](_0x3704[1]))
 	});
 	page.appendItem(PREFIX + ":tivixStart", "directory", {
 	    title: "Tivix.co"
+	});
+	page.appendItem(PREFIX + ":youtvStart", "directory", {
+	    title: "Youtv.com.ua"
 	});
 	page.appendItem(PREFIX + ":goAtDeeStart", "directory", {
 	    title: "goATDee.Net"
