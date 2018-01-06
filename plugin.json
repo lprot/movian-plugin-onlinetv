@@ -10,5 +10,6 @@
 	"type": "ecmascript",
 	"id": "tv",
 	"icon": "logo.png",
-	"category": "tv"
+	"category": "tv",
+        "apiversion": 2
 }
