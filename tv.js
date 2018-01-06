@@ -177,24 +177,50 @@
         page.metadata.title = unescape(title);
         var resp = showtime.httpReq('http://' + unescape(url)).toString();
         var match = resp.match(/'file': "([\S\s]*?)"/);
-	if (!match) match = resp.match(/file: "([\S\s]*?)"/);
-	if (!match) match = resp.match(/file": "([\s\S]*?)"/);
-        if (!match) match = resp.match(/hlsURL = '([\S\s]*?)'/); // ntv
-        if (!match) match = resp.match(/url: '([\S\s]*?)'/); // trk ukraine
-        if (!match) match = resp.match(/source: '([\S\s]*?)'/); // donbass tv
-        if (!match) match = resp.match(/source: "([\S\s]*?)"/); // europa tv
-	if (!match) match = resp.match(/src: '([\S\s]*?)'/); // fashion tv
-	if (!match) match = resp.match(/liveurl = "([\s\S]*?)"/); // zvezda
+	if (!match || !match.toString().match(/m3u8/)) match = resp.match(/file: "([\S\s]*?)"/);
+	if (!match || !match.toString().match(/m3u8/)) match = resp.match(/file": "([\s\S]*?)"/);
+        if (!match || !match.toString().match(/m3u8/)) match = resp.match(/hlsURL = '([\S\s]*?)'/); // ntv
+        if (!match || !match.toString().match(/m3u8/)) match = resp.match(/url: '([\S\s]*?)'/); // trk ukraine
+        if (!match || !match.toString().match(/m3u8/)) match = resp.match(/source: '([\S\s]*?)'/); // donbass tv
+        if (!match || !match.toString().match(/m3u8/)) match = resp.match(/source: "([\S\s]*?)"/); // europa tv
+	if (!match || !match.toString().match(/m3u8/)) match = resp.match(/src: '([\S\s]*?)'/); // fashion tv
+	if (!match || !match.toString().match(/m3u8/)) match = resp.match(/liveurl = "([\s\S]*?)"/); // zvezda
         page.loading = false;
         if (match) {
             page.type = "video";
 	    match = match[1].replace(/\\\//g, '/');
 	    if (!match.match(/http:/) && !match.match(/https:/)) match = 'http:' + match;
+            log(match);
             page.source = "videoparams:" + showtime.JSONEncode({
                 title: unescape(title),
                 canonicalUrl: PREFIX + ':file:' + url + ':' + title,
                 sources: [{
                     url: match.match(/m3u8/) ? 'hls:' + match : match
+                }],
+                no_subtitle_scan: true
+            });
+        } else page.error("Sorry, can't get the link :(");
+    });
+
+    plugin.addURI(PREFIX + ":ovva:(.*):(.*)", function(page, url, title) {
+        page.loading = true;
+        page.metadata.title = unescape(title);
+        var match = showtime.httpReq('https://' + unescape(url)).toString();
+        var json = match.match(/ovva-player","([\s\S]*?)"/);
+        if (json) 
+            json = JSON.parse(Duktape.dec('base64', json[1]));
+        json = showtime.httpReq(json.balancer).toString();
+        log(json);
+        var match = json.match(/=([\s\S]*?$)/);
+        log(match);
+        page.loading = false;
+        if (match) {
+            page.type = "video";
+            page.source = "videoparams:" + showtime.JSONEncode({
+                title: unescape(title),
+                canonicalUrl: PREFIX + ':ovva:' + url + ':' + title,
+                sources: [{
+                    url: match[1].match(/m3u8/) ? 'hls:' + match[1] : match[1]
                 }],
                 no_subtitle_scan: true
             });
