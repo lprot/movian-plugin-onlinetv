@@ -89,16 +89,15 @@ function addToFavoritesOption(item, link, title, icon) {
     item.link = link;
     item.title = title;
     item.icon = icon;
-    item.onEvent("addFavorite", function(item) {
+    item.addOptAction("Add '" + title + "' to My Favorites", function() {
         var entry = JSON.stringify({
-            link: encodeURIComponent(this.link),
-            title: encodeURIComponent(this.title),
-            icon: encodeURIComponent(this.icon)
+            link: encodeURIComponent(link),
+            title: encodeURIComponent(title),
+            icon: encodeURIComponent(icon)
         });
         store.list = JSON.stringify([entry].concat(eval(store.list)));
-        popup.notify("'" + this.title + "' has been added to My Favorites.", 2);
-    }.bind(item));
-    item.addOptAction("Add '" + title + "' to My Favorites", "addFavorite");
+        popup.notify("'" + title + "' has been added to My Favorites.", 2);
+    });
 }
 
 var API = 'https://www.googleapis.com/youtube/v3',
@@ -349,6 +348,10 @@ new page.Route(plugin.id + ":ts:(.*):(.*)", function(page, url, title) {
     page.source = link;
 });
 
+function a(b) {
+print(b);
+}
+
 function fill_fav(page) {
     var list = eval(store.list);
 
@@ -368,15 +371,16 @@ function fill_fav(page) {
 
         item.onEvent(pos, function(item) {
             var list = eval(store.list);
-            popup.notify("'" + decodeURIComponent(JSON.parse(list[item]).title) + "' has been removed from My Favorites.", 2);
+            showtime.notify("'" + decodeURIComponent(showtime.JSONDecode(list[item]).title) + "' has been removed from My Favorites.", 2);
             list.splice(item, 1);
-            store.list = JSON.stringify(list);
+            store.list = showtime.JSONEncode(list);
             page.flush();
             fill_fav(page);
-        });
+	});
         pos++;
     }
 }
+
 
 // Favorites
 new page.Route(plugin.id + ":favorites", function(page) {
@@ -474,6 +478,7 @@ new page.Route(plugin.id + ":playYoutv:(.*):(.*)", function(page, url, title) {
         req.setHeader('X-Requested-With', 'ShockwaveFlash/28.0.0.126');
         req.setHeader('User-Agent', UA);
     });
+
     page.source = "videoparams:" + JSON.stringify({
         title: unescape(title),
         no_fs_scan: true,
