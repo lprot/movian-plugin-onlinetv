@@ -57,9 +57,6 @@ function trim(s) {
 service.create(plugin.title, plugin.id + ":start", 'tv', true, logo);
 
 settings.globalSettings(plugin.id, plugin.title, logo, plugin.synopsis);
-settings.createBool('debug', 'Enable debug logging', false, function(v) {
-    service.debug = v;
-});
 settings.createBool('disableSampleList', "Don't show Sample M3U list", false, function(v) {
     service.disableSampleList = v;
 });
@@ -72,10 +69,16 @@ settings.createBool('disableEPG', "Don't fetch EPG", true, function(v) {
 settings.createString('acestreamIp', "IP address of AceStream Proxy. Enter IP only.", '192.168.0.93', function(v) {
     service.acestreamIp = v;
 });
-//settings.createAction("cleanFavorites", "Clean My Favorites", function () {
-//    store.list = "[]";
-//    popup.notify('Favorites has been cleaned successfully', 2);
-//});
+settings.createBool('debug', 'Enable debug logging', false, function(v) {
+    service.debug = v;
+});
+settings.createBool('disableMyFavorites', "Don't show My Favorites", false, function(v) {
+    service.disableMyFavorites = v;
+});
+settings.createAction("cleanFavorites", "Clean My Favorites", function () {
+    store.list = "[]";
+    popup.notify('Favorites has been cleaned successfully', 2);
+});
 
 var store = require('movian/store').create('favorites');
 if (!store.list) 
@@ -97,6 +100,16 @@ function addToFavoritesOption(item, link, title, icon) {
         });
         store.list = JSON.stringify([entry].concat(eval(store.list)));
         popup.notify("'" + title + "' has been added to My Favorites.", 2);
+    });
+}
+
+function removeFromFavoritesOption(page, item, title, pos) {
+    item.addOptAction("Remove '" + title + "' from My Favorites", function() {
+        var list = eval(store.list);
+        popup.notify("'" + title + "' has been removed from My Favorites.", 2);
+        list.splice(pos, 1);
+        store.list = JSON.stringify(list);
+        page.redirect(plugin.id + ':favorites');
     });
 }
 
@@ -367,20 +380,10 @@ function fill_fav(page) {
             icon: itemmd.icon ? decodeURIComponent(itemmd.icon) : null,
             description: new RichText(coloredStr('Link: ', orange) + decodeURIComponent(itemmd.link))
         });
-        item.addOptAction("Remove '" + decodeURIComponent(itemmd.title) + "' from My Favorites", pos);
-
-        item.onEvent(pos, function(item) {
-            var list = eval(store.list);
-            showtime.notify("'" + decodeURIComponent(showtime.JSONDecode(list[item]).title) + "' has been removed from My Favorites.", 2);
-            list.splice(item, 1);
-            store.list = showtime.JSONEncode(list);
-            page.flush();
-            fill_fav(page);
-	});
+        removeFromFavoritesOption(page, item, decodeURIComponent(itemmd.title), pos);
         pos++;
     }
 }
-
 
 // Favorites
 new page.Route(plugin.id + ":favorites", function(page) {
@@ -1356,10 +1359,12 @@ new page.Route(plugin.id + ":goAtDeeStart", function(page) {
 
 // Start page
 new page.Route(plugin.id + ":start", function(page) {
-    setPageHeader(page, plugin.title);
-    //page.appendItem(plugin.id + ":favorites", "directory", {
-    //    title: "My Favorites"
-    //});
+    setPageHeader(page, plugin.title);    
+    if (!service.disableMyFavorites) {
+        page.appendItem(plugin.id + ":favorites", "directory", {
+            title: "My Favorites"
+        });
+    }
 
     page.appendItem("", "separator", {
         title: 'M3U & XML playlists'
