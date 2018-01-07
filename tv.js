@@ -1235,7 +1235,7 @@ function getIdc(page, url) {
 
         while (1) {
             page.loading = false;
-            var credentials = plugin.getAuthCredentials(plugin.id, 'Idc.md requires login to continue', showDialog, 'idc');
+            var credentials = popup.getAuthCredentials(plugin.id, 'Idc.md requires login to continue', showDialog, 'idc');
             if (credentials.rejected) {
                 page.error('Cannot continue without login/password :(');
                 return false;
