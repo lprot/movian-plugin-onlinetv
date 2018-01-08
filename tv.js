@@ -88,10 +88,7 @@ var playlists = require('movian/store').create('playlists');
 if (!playlists.list)
     playlists.list = "[]";
 
-function addToFavoritesOption(item, link, title, icon) {
-    item.link = link;
-    item.title = title;
-    item.icon = icon;
+function addOptionForAddingToMyFavorites(item, link, title, icon) {
     item.addOptAction("Add '" + title + "' to My Favorites", function() {
         var entry = JSON.stringify({
             link: encodeURIComponent(link),
@@ -103,7 +100,7 @@ function addToFavoritesOption(item, link, title, icon) {
     });
 }
 
-function removeFromFavoritesOption(page, item, title, pos) {
+function addOptionForRemovingFromMyFavorites(page, item, title, pos) {
     item.addOptAction("Remove '" + title + "' from My Favorites", function() {
         var list = eval(store.list);
         popup.notify("'" + title + "' has been removed from My Favorites.", 2);
@@ -380,7 +377,7 @@ function fill_fav(page) {
             icon: itemmd.icon ? decodeURIComponent(itemmd.icon) : null,
             description: new RichText(coloredStr('Link: ', orange) + decodeURIComponent(itemmd.link))
         });
-        removeFromFavoritesOption(page, item, decodeURIComponent(itemmd.title), pos);
+        addOptionForRemovingFromMyFavorites(page, item, decodeURIComponent(itemmd.title), pos);
         pos++;
     }
 }
@@ -413,7 +410,7 @@ new page.Route(plugin.id + ":indexTivix:(.*):(.*)", function(page, url, title) {
                 title: match[1],
                 icon: icon
             });
-            addToFavoritesOption(item, link, match[1], icon);
+            addOptionForAddingToMyFavorites(item, link, match[1], icon);
             n++;
             match = re.exec(doc);
         }
@@ -545,32 +542,33 @@ new page.Route(plugin.id + ":youtvStart", function(page) {
     page.loading = false;
 });
 
-function showPlaylist(page) {
-    var list = eval(playlists.list);
+function addOptionToRemovePlaylist(page, item, title, pos) {
+    item.addOptAction("Remove '" + title + "' playlist from the list", function() {
+        var playlist = eval(playlists.list);
+        popup.notify("'" + title + "' has been removed from the list.", 2);
+        playlist.splice(pos, 1);
+        playlists.list = JSON.stringify(playlist);
+        page.flush();
+        page.redirect(plugin.id + ':start');
+    });
+}
 
-    if (!list || !list.toString()) {
-        page.appendPassiveItem("directory", '', {
-            title: "You can add your M3U or XML playlist in the right side menu"
-        });
-    }
+function showPlaylist(page) {
+    var playlist = eval(playlists.list);
+
+    if (!playlist || !playlist.toString()) 
+        popup.notify('You can add your M3U or XML playlist in the right side menu', 5);
+
     var pos = 0;
-    for (var i in list) {
-        var itemmd = JSON.parse(list[i]);
+    for (var i in playlist) {
+        var itemmd = JSON.parse(playlist[i]);
         if (!itemmd.link.match(/m3u:http/) && !itemmd.link.match(/xml:http/))
             itemmd.link = 'm3u:' + itemmd.link;
         var item = page.appendItem(itemmd.link + ':' + itemmd.title, "directory", {
             title: decodeURIComponent(itemmd.title),
             link: decodeURIComponent(itemmd.link)
         });
-        item.addOptAction("Remove '" + decodeURIComponent(itemmd.title) + "' playlist from the list", pos);
-        item.onEvent(pos, function(item) {
-            var list = eval(playlists.list);
-            popup.notify("'" + decodeURIComponent(JSON.parse(list[item]).title) + "' has been removed from from the list.", 2);
-            list.splice(item, 1);
-            playlists.list = JSON.stringify(list);
-            page.flush();
-            page.redirect(plugin.id + ':start');
-        });
+        addOptionToRemovePlaylist(page, item, decodeURIComponent(itemmd.title), pos);
         pos++;
     }
 }
@@ -732,7 +730,7 @@ function addItem(page, url, title, icon, description, genre, epgForTitle, userag
             description: new RichText((linkUrl ? coloredStr('Link: ', orange) + linkUrl : '') +
                 (description ? '\n' + description : ''))
         });
-        addToFavoritesOption(item, link, title, icon);
+        addOptionForAddingToMyFavorites(item, link, title, icon);
     }
 }
 
