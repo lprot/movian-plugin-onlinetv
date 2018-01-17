@@ -38,10 +38,13 @@ RichText.prototype.toRichString = function(x) {
 var UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/63.0.3239.84 Safari/537.36';
 
 function setPageHeader(page, title) {
+    if (page.metadata) {
+        page.metadata.title = new RichText(title);
+        page.metadata.logo = logo;
+    }
     page.type = "directory";
     page.contents = "items";
-    page.metadata.logo = logo;
-    page.metadata.title = new RichText(title);
+    page.loading = false;
 }
 
 var blue = '6699CC', orange = 'FFA500', red = 'EE0000', green = '008B45';
@@ -135,7 +138,8 @@ new page.Route(plugin.id + ":youtube:(.*)", function(page, title) {
     page.loading = false;
 });
 
-new page.Route(plugin.id + ":tivix:(.*):(.*)", function(page, url, title) {
+new page.Route(plugin.id + ":tivix:(.*):(.*):(.*)", function(page, url, title, icon) {
+    setPageHeader(page, unescape(title));
     page.loading = true;
     var resp = http.request(unescape(url)).toString();
     page.loading = false;
@@ -156,15 +160,15 @@ new page.Route(plugin.id + ":tivix:(.*):(.*)", function(page, url, title) {
             continue;
         }
         if (match[1].match(/rtmp/))
-            var link = unescape(match[1]) + ' swfUrl=http://tivix.co' + resp.match(/data="(.*)"/)[1] + ' pageUrl=' + unescape(url);
+            var link = unescape(match[1]) + ' swfUrl=http://tivix.co' + (resp.match(/data="(.*)"/) ? resp.match(/data="(.*)"/)[1] : '') + ' pageUrl=' + unescape(url);
         else
             var link = match[1].match('m3u8') ? 'hls:' + unescape(match[1]) : unescape(match[1]);
-
         page.loading = false;
         page.type = "video";
         page.source = "videoparams:" + JSON.stringify({
             title: unescape(title),
-            canonicalUrl: plugin.id + ':tivix:' + url + ':' + title,
+            canonicalUrl: plugin.id + ':tivix:' + url + ':' + title +':' + icon,
+            icon: icon ? unescape(icon) : null,
             sources: [{
                 url: link
             }],
@@ -179,8 +183,10 @@ new page.Route(plugin.id + ":tivix:(.*):(.*)", function(page, url, title) {
         page.redirect('youtube:video:' + match[1]);
         return;
     }
-    page.metadata.title = unescape(title);
-    page.error("Sorry, can't get the link :(");
+    if (resp.match('Канал удалён по требованию правообладателя'))
+        page.error('Канал удалён по требованию правообладателя =(');
+    else
+        page.error("Sorry, can't get the link :(");
 });
 
 new page.Route(plugin.id + ":acestream:(.*):(.*)", function(page, id, title) {
@@ -404,8 +410,8 @@ new page.Route(plugin.id + ":indexTivix:(.*):(.*)", function(page, url, title) {
         var re = /<div class="all_tv" title="([\S\s]*?)">[\S\s]*?href="([\S\s]*?)"[\S\s]*?<img src="([\S\s]*?)"/g;
         var match = re.exec(doc);
         while (match) {
-            var link = plugin.id + ":tivix:" + escape(match[2]) + ':' + escape(match[1]);
             var icon = 'http://tivix.co' + match[3];
+            var link = plugin.id + ":tivix:" + escape(match[2]) + ':' + escape(match[1]) + ':' + escape(icon);
             var item = page.appendItem(link, "video", {
                 title: match[1],
                 icon: icon
@@ -456,7 +462,7 @@ if (!devId)
         return n.toString(16)
     });
 
-new page.Route(plugin.id + ":playYoutv:(.*):(.*)", function(page, url, title) {
+new page.Route(plugin.id + ":playYoutv:(.*):(.*):(.*)", function(page, url, title, icon) {
     page.loading = true;
     page.type = 'video';
     var json = JSON.parse(http.request(unescape(url), {
@@ -482,7 +488,8 @@ new page.Route(plugin.id + ":playYoutv:(.*):(.*)", function(page, url, title) {
     page.source = "videoparams:" + JSON.stringify({
         title: unescape(title),
         no_fs_scan: true,
-        canonicalUrl: plugin.id + ':playYoutv:' + url + ':' + title,
+        canonicalUrl: plugin.id + ':playYoutv:' + url + ':' + title + ':' + icon,
+        icon: icon ? unescape(icon) : null,
         sources: [{
             url: 'hls:' + link
         }],
@@ -531,7 +538,7 @@ new page.Route(plugin.id + ":youtvStart", function(page) {
             } else
                 genres += ', ' + json.data[i].categories[j].name;
         }
-        page.appendItem(plugin.id + ':playYoutv:' + escape(json.data[i].sources[0].stream.url) + ':' + escape(json.data[i].name), 'video', {
+        page.appendItem(plugin.id + ':playYoutv:' + escape(json.data[i].sources[0].stream.url) + ':' + escape(json.data[i].name) + ':' + escape(json.data[i].image), 'video', {
             title: new RichText(json.data[i].name),
             genre: genres,
             icon: json.data[i].image
@@ -697,6 +704,7 @@ function addItem(page, url, title, icon, description, genre, epgForTitle, userag
     } else {
         var link = "videoparams:" + JSON.stringify({
             title: title,
+            icon: icon,
             sources: [{
                 url: url.match(/m3u8/) || url.match(/\.smil/) ? 'hls:' + url : url
             }],
@@ -1040,7 +1048,7 @@ function getIMDBid(title) {
     return imdbid;
 };
 
-new page.Route(plugin.id + ":streamlive:(.*):(.*)", function(page, url, title) {
+new page.Route(plugin.id + ":streamlive:(.*):(.*):(.*)", function(page, url, title, icon) {
     page.loading = true;
     var doc = http.request(unescape(url)).toString();
     var imdbid = lnk = no_subtitle_scan = 0;
@@ -1075,8 +1083,9 @@ new page.Route(plugin.id + ":streamlive:(.*):(.*)", function(page, url, title) {
     page.type = 'video';
     page.source = "videoparams:" + JSON.stringify({
         title: unescape(title),
-        canonicalUrl: plugin.id + ':streamlive:' + url + ':' + title,
+        canonicalUrl: plugin.id + ':streamlive:' + url + ':' + title + ':' + icon,
         imdbid: imdbid,
+        icon: unescape(icon),
         sources: [{
             url: lnk,
             mimetype: mimetype
@@ -1121,7 +1130,7 @@ new page.Route(plugin.id + ":streamliveStart", function(page) {
         match = re.exec(doc);
         var added = 0;
         while (match) {
-            page.appendItem(plugin.id + ':streamlive:' + escape(match[2]) + ':' + escape(trim(match[3])), "video", {
+            page.appendItem(plugin.id + ':streamlive:' + escape(match[2]) + ':' + escape(trim(match[3])) + ':' + escape('https:' + match[1]), "video", {
                 title: trim(match[3]),
                 icon: 'https:' + match[1],
                 genre: trim(match[7]),

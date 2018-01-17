@@ -4,12 +4,11 @@
 	"homepage": "https://github.com/lprot/movian-plugin-onlinetv",
 	"title": "Online TV",
 	"synopsis": "Online TV - collection of online tv sources",
-	"version": "0.9.20",
+	"version": "0.9.21",
 	"file": "tv.js",
 	"showtimeVersion": "4.8",
 	"type": "ecmascript",
 	"id": "tv",
 	"icon": "logo.png",
-	"category": "tv",
-        "apiversion": 2
+	"category": "tv"
 }
