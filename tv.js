@@ -209,6 +209,7 @@ new page.Route(plugin.id + ":file:(.*):(.*)", function(page, url, title) {
     if (!match || !match.toString().match(/m3u8/)) match = resp.match(/file: "([\S\s]*?)"/);
     if (!match || !match.toString().match(/m3u8/)) match = resp.match(/file": "([\s\S]*?)"/);
     if (!match || !match.toString().match(/m3u8/)) match = resp.match(/file: '([\s\S]*?)'/);
+    if (!match || !match.toString().match(/m3u8/)) match = resp.match(/file:"([\s\S]*?) or /); //chas
     if (!match || !match.toString().match(/m3u8/)) match = resp.match(/file:"([\s\S]*?)"/); //chas / fanat
     if (!match || !match.toString().match(/m3u8/)) match = resp.match(/hlsURL = '([\S\s]*?)'/); // ntv
     if (!match || !match.toString().match(/m3u8/)) match = resp.match(/url: '([\S\s]*?)'/); // trk ukraine
