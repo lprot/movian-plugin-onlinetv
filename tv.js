@@ -396,6 +396,7 @@ new page.Route(plugin.id + ":favorites", function(page) {
 });
 
 new page.Route(plugin.id + ":indexTivix:(.*):(.*)", function(page, url, title) {
+    page.model.contents = 'grid';
     setPageHeader(page, decodeURIComponent(title));
     var url = prefixUrl = 'http://tivix.co' + decodeURIComponent(url);
     var tryToSearch = true,
@@ -435,6 +436,7 @@ new page.Route(plugin.id + ":indexTivix:(.*):(.*)", function(page, url, title) {
 });
 
 new page.Route(plugin.id + ":tivixStart", function(page) {
+    page.model.contents = 'grid';
     setPageHeader(page, 'Tivix.co');
     page.loading = true;
     var doc = http.request('http://tivix.co').toString();
@@ -451,7 +453,6 @@ new page.Route(plugin.id + ":tivixStart", function(page) {
             submenus = re2.exec(menus[1]);
         }
         menus = re.exec(doc);
-        page.appendItem("", "separator");
     }
 });
 
@@ -500,6 +501,7 @@ new page.Route(plugin.id + ":playYoutv:(.*):(.*):(.*)", function(page, url, titl
 });
 
 new page.Route(plugin.id + ":youtvStart", function(page) {
+    page.model.contents = 'grid';
     setPageHeader(page, 'Youtv.com.ua');
     page.loading = true;
     var doc = http.request('https://youtv.com.ua/api/start', {
@@ -1134,12 +1136,11 @@ new page.Route(plugin.id + ":streamliveStart", function(page) {
             page.appendItem(plugin.id + ':streamlive:' + escape(match[2]) + ':' + escape(trim(match[3])) + ':' + escape('https:' + match[1]), "video", {
                 title: trim(match[3]),
                 icon: 'https:' + match[1],
-                genre: trim(match[7]),
+                genre: new RichText(trim(match[7]) + coloredStr('<br>Language: ', orange) + trim(match[8])),
+                tagline: new RichText((trim(match[4]) ? coloredStr('Now: ', orange) + trim(match[4].replace(/&nbsp;/g, '')).replace(/^"|"$/g, '') : '')),
                 description: new RichText(
-                    (trim(match[4]) ? coloredStr('Now: ', orange) + trim(match[4].replace(/&nbsp;/g, '')).replace(/^"|"$/g, '') : '') +
-                    coloredStr('\nViewers: ', orange) + trim(match[5]) +
-                    coloredStr(' Total views: ', orange) + trim(match[6]) +
-                    coloredStr('\nLanguage: ', orange) + trim(match[8]))
+                    coloredStr('Viewers: ', orange) + trim(match[5]) +
+                    coloredStr(' Total views: ', orange) + trim(match[6]))
             });
             match = re.exec(doc);
             page.entries++;
