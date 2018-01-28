@@ -746,10 +746,16 @@ function addItem(page, url, title, icon, description, genre, epgForTitle, userag
     }
 }
 
+function isM3U(pl) {
+    pl = unescape(pl).toUpperCase();
+    if (pl.match(/TYPE=M3U/) || pl.match(/EXPORTALL/) || pl.match(/BIT.DO/)) return true;
+    return false;
+}
+
 new page.Route('m3u:(.*):(.*)', function(page, pl, title) {
     setPageHeader(page, unescape(title));
     page.loading = true;
-    if (unescape(pl).toUpperCase().substr(0, 4) != 'RTMP') {
+    if (isM3U(pl)) {
         if (unescape(pl).match(/oneplaylist\.space/)) {
             page.metadata.title = 'Downloading M3U playlist...';
             var m3u = http.request(decodeURIComponent(pl)).toString().match(/<div style="[\s\S]*?">([\s\S]*?)<\/div>/)[1].split('<br />')
@@ -769,7 +775,7 @@ new page.Route('m3u:(.*):(.*)', function(page, pl, title) {
             if (m3uItems[i].group)
                 continue;
             var extension = m3uItems[i].url.split('.').pop().toUpperCase();
-            if ((m3uItems[i].url == m3uItems[i].title) || extension == 'M3U' || extension == 'PHP' && m3uItems[i].url.toUpperCase().substr(0, 4) != 'RTMP') {
+            if (m3uItems[i].url.toUpperCase().match(/TYPE=M3U/) || (m3uItems[i].url == m3uItems[i].title) || extension == 'M3U' || extension == 'PHP' && m3uItems[i].url.toUpperCase().substr(0, 4) != 'RTMP') {
                 page.appendItem('m3u:' + encodeURIComponent(m3uItems[i].url) + ':' + encodeURIComponent(m3uItems[i].title), "directory", {
                     title: m3uItems[i].title
                 });
