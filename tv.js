@@ -748,7 +748,8 @@ function addItem(page, url, title, icon, description, genre, epgForTitle, userag
 
 function isM3U(pl) {
     pl = unescape(pl).toUpperCase();
-    if (pl.match(/TYPE=M3U/) || pl.match(/EXPORTALL/) || pl.match(/BIT.DO/)) return true;
+    var extension = pl.split('.').pop().toUpperCase();
+    if (extension == 'M3U' || pl.match(/TYPE=M3U/) || pl.match(/EXPORTALL/) || pl.match(/BIT.DO/)) return true;
     return false;
 }
 
