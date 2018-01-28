@@ -142,7 +142,6 @@ new page.Route(plugin.id + ":tivix:(.*):(.*):(.*)", function(page, url, title, i
     setPageHeader(page, unescape(title));
     page.loading = true;
     var resp = http.request(unescape(url)).toString();
-    page.loading = false;
     var re = /file=([\S\s]*?)&/g;
     var match = re.exec(resp);
     if (!match) {
@@ -154,7 +153,7 @@ new page.Route(plugin.id + ":tivix:(.*):(.*):(.*)", function(page, url, title, i
         match = re.exec(resp);
     }
     while (match) {
-        page.loading = true;
+        log('Probing: ' + match[1]);
         if (io.probe(match[1]).result) {
             match = re.exec(resp);
             continue;
@@ -163,7 +162,6 @@ new page.Route(plugin.id + ":tivix:(.*):(.*):(.*)", function(page, url, title, i
             var link = unescape(match[1]) + ' swfUrl=http://tivix.co' + (resp.match(/data="(.*)"/) ? resp.match(/data="(.*)"/)[1] : '') + ' pageUrl=' + unescape(url);
         else
             var link = match[1].match('m3u8') ? 'hls:' + unescape(match[1]) : unescape(match[1]);
-        page.loading = false;
         page.type = "video";
         page.source = "videoparams:" + JSON.stringify({
             title: unescape(title),
@@ -174,6 +172,7 @@ new page.Route(plugin.id + ":tivix:(.*):(.*):(.*)", function(page, url, title, i
             }],
             no_subtitle_scan: true
         });
+        page.loading = false;
         return;
     }
 
@@ -187,6 +186,7 @@ new page.Route(plugin.id + ":tivix:(.*):(.*):(.*)", function(page, url, title, i
         page.error('Канал удалён по требованию правообладателя =(');
     else
         page.error("Sorry, can't get the link :(");
+    page.loading = false;
 });
 
 new page.Route(plugin.id + ":acestream:(.*):(.*)", function(page, id, title) {
@@ -205,18 +205,15 @@ new page.Route(plugin.id + ":file:(.*):(.*)", function(page, url, title) {
     page.loading = true;
     page.metadata.title = unescape(title);
     var resp = http.request('http://' + unescape(url)).toString();
-    var match = resp.match(/'file': "([\S\s]*?)"/);
-    if (!match || !match.toString().match(/m3u8/)) match = resp.match(/file: "([\S\s]*?)"/);
-    if (!match || !match.toString().match(/m3u8/)) match = resp.match(/file": "([\s\S]*?)"/);
-    if (!match || !match.toString().match(/m3u8/)) match = resp.match(/file: '([\s\S]*?)'/);
-    if (!match || !match.toString().match(/m3u8/)) match = resp.match(/file:"([\s\S]*?) or /); //chas
-    if (!match || !match.toString().match(/m3u8/)) match = resp.match(/file:"([\s\S]*?)"/); //chas / fanat
-    if (!match || !match.toString().match(/m3u8/)) match = resp.match(/hlsURL = '([\S\s]*?)'/); // ntv
-    if (!match || !match.toString().match(/m3u8/)) match = resp.match(/url: '([\S\s]*?)'/); // trk ukraine
-    if (!match || !match.toString().match(/m3u8/)) match = resp.match(/source: '([\S\s]*?)'/); // donbass 
-    if (!match || !match.toString().match(/m3u8/)) match = resp.match(/source: "([\S\s]*?)"/); // europa
-    if (!match || !match.toString().match(/m3u8/)) match = resp.match(/src: '([\S\s]*?)'/); // fashion
-    if (!match || !match.toString().match(/m3u8/)) match = resp.match(/liveurl = "([\s\S]*?)"/); // zvezda
+    var expressions = [/'file': "([\S\s]*?)"/, /file: "([\S\s]*?)"//*giniko*/, /file": "([\s\S]*?)"/, /file: '([\s\S]*?)'/,
+                 /file: '([\s\S]*?)'/, /file:"([\s\S]*?) or //*chas*/, /file:"([\s\S]*?)"//*chastv fanattv*/, 
+                 /hlsURL = '([\S\s]*?)'//*ntv*/,  /url: '([\S\s]*?)'//*trk uraine*/,  /source: '([\S\s]*?)'//*donbass*/, 
+                 /source: "([\S\s]*?)"//*europa*/,  /src: '([\S\s]*?)'//*fashion*/,  /liveurl = "([\s\S]*?)"//*zvezda*/]
+    for (var i = 0 ; i < expressions.length; i++) {
+        var match = resp.match(expressions[i]);
+        if (match && match.toString().match(/m3u8/))
+            break;
+    }    
     page.loading = false;
     if (match) {
         page.type = "video";
@@ -604,11 +601,13 @@ new page.Route('m3uGroup:(.*):(.*)', function(page, pl, groupID) {
     page.metadata.title = decodeURIComponent(groupID) + ' (' + num + ')';
 });
 
-function readAndParseM3U(page, pl) {
-    var tmp = page.metadata.title + '';
+function readAndParseM3U(page, pl, m3u) {
+    var title = page.metadata.title + '';
     page.loading = true;
-    page.metadata.title = 'Downloading M3U list...';
-    var m3u = http.request(decodeURIComponent(pl)).toString().split('\n');
+    if (!m3u) {
+        page.metadata.title = 'Downloading M3U list...';
+        m3u = http.request(decodeURIComponent(pl)).toString().split('\n');
+    };
     theLastList = pl;
     m3uItems = [], groups = [];
     var m3uUrl = '',
@@ -670,7 +669,7 @@ function readAndParseM3U(page, pl) {
                     line = 'acestream://' + line;
                 if (m3uImage && m3uImage.substr(0, 4) != 'http')
                     m3uImage = line.match(/^.+?[^\/:](?=[?\/]|$)/) + '/' + m3uImage;
-                tmp = line.split('|');
+                var tmp = line.split('|');
                 if (tmp[1]) {
                     line = tmp[0];
                     tmp = tmp[1].match(/User-Agent=([\s\S]*>?)/);
@@ -689,8 +688,7 @@ function readAndParseM3U(page, pl) {
                 m3uUrl = '', m3uTitle = '', m3uImage = '', m3uEpgId = '', m3uUserAgent = ''; //, m3uGroup = '';
         }
     }
-    page.metadata.title = new RichText(tmp);
-    page.loading = false;
+    page.metadata.title = title;
 }
 
 function addItem(page, url, title, icon, description, genre, epgForTitle, useragent) {
@@ -749,7 +747,13 @@ function addItem(page, url, title, icon, description, genre, epgForTitle, userag
 
 new page.Route('m3u:(.*):(.*)', function(page, pl, title) {
     setPageHeader(page, unescape(title));
-    readAndParseM3U(page, pl);
+    page.loading = true;
+    if (unescape(pl).toUpperCase().substr(0, 4) != 'RTMP') {
+        if (unescape(pl).match(/oneplaylist\.space/)) {
+            var m3u = http.request(decodeURIComponent(pl)).toString().match(/<div style="[\s\S]*?">([\s\S]*?)<\/div>/)[1].split('<br />')
+            readAndParseM3U(page, pl, m3u);
+        } else
+            readAndParseM3U(page, pl);
 
     var num = 0;
     for (var i in groups) {
@@ -763,7 +767,7 @@ new page.Route('m3u:(.*):(.*)', function(page, pl, title) {
         if (m3uItems[i].group)
             continue;
         var extension = m3uItems[i].url.split('.').pop().toUpperCase();
-        if (extension == 'M3U' || extension == 'PHP' && m3uItems[i].url.toUpperCase().substr(0, 4) != 'RTMP') {
+        if ((m3uItems[i].url == m3uItems[i].title) || extension == 'M3U' || extension == 'PHP' && m3uItems[i].url.toUpperCase().substr(0, 4) != 'RTMP') {
             page.appendItem('m3u:' + encodeURIComponent(m3uItems[i].url) + ':' + encodeURIComponent(m3uItems[i].title), "directory", {
                 title: m3uItems[i].title
             });
@@ -777,7 +781,20 @@ new page.Route('m3u:(.*):(.*)', function(page, pl, title) {
             num++;
         }
     }
-    page.metadata.title = new RichText(unescape(title) + ' (' + num + ')');
+    }
+    if (num)
+        page.metadata.title = new RichText(unescape(title) + ' (' + num + ')');
+    else { //try as m3u8
+        page.type = 'video';
+        page.source = "videoparams:" + JSON.stringify({
+            title: unescape(title),
+            sources: [{
+                url: unescape(pl).match(/m3u8/) ? 'hls:' + unescape(pl) : unescape(pl)
+            }],
+            no_subtitle_scan: true
+        });
+    }
+    page.loading = false;
 });
 
 var XML = require('showtime/xml');
@@ -1368,6 +1385,32 @@ new page.Route(plugin.id + ":goAtDeeStart", function(page) {
     page.loading = false;
 });
 
+new page.Route(plugin.id + ":onePlaylistStart", function(page) {
+    setPageHeader(page, 'Oneplaylist.space - Stream Database');
+    page.loading = true;
+    page.appendItem('m3u:' + escape('https://www.oneplaylist.space/database/exportall') + ':' + escape('All channels'), "directory", {
+        title: 'All channels'
+    });
+
+    var doc = http.request('http://www.oneplaylist.space').toString();
+
+    page.appendItem("", "separator", {
+        title: 'Recently added streams'
+    });
+    //1-title, 2-link
+    var re = /<span style="color:#000">([\s\S]*?) \| <\/span><span style="color:#06C">([\s\S]*?)<\/span>/g;
+    var match = re.exec(doc);
+    while (match) {
+        page.appendItem('m3u:' + escape(match[2]) + ':' + escape(match[1]), "video", {
+            title: match[1],
+            description: match[2]
+        });
+        match = re.exec(doc);
+    }
+    page.loading = false;
+});
+
+
 // Start page
 new page.Route(plugin.id + ":start", function(page) {
     setPageHeader(page, plugin.title);    
@@ -1416,6 +1459,9 @@ new page.Route(plugin.id + ":start", function(page) {
 
     page.appendItem("", "separator", {
         title: 'Providers'
+    });
+    page.appendItem(plugin.id + ":onePlaylistStart", "directory", {
+        title: "Oneplaylist.space"
     });
     page.appendItem(plugin.id + ":streamliveStart", "directory", {
         title: "StreamLive.to"
