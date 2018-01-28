@@ -1147,19 +1147,19 @@ new page.Route(plugin.id + ":streamliveStart", function(page) {
         }).toString();
         page.loading = false;
 
-        // 1-icon, 2-lnk, 3-title, 4-what's on, 5-viewers, 6-totalviews, 7-genre, 8-language
-        var re = /<div class="icon-box">[\s\S]*?src="([\s\S]*?)"[\s\S]*?class="ser-text"><a href="([\s\S]*?)">([\s\S]*?)<br\/>([\s\S]*?)<\/a>[\s\S]*?<\/i>([\s\S]*?)&nbsp[\s\S]*?<\/i>([\s\S]*?)<br\/>[\s\S]*?<a href="[\s\S]*?">([\s\S]*?)<\/a>[\s\S]*?<a href="[\s\S]*?">([\s\S]*?)<\/a>/g;
+        // 1-icon, 2-title, 3-what's on, 4-viewers, 5-totalviews, 6-genre, 7-language, 8-link
+        var re = /class="card-img-top"[\s\S]*?src="([\s\S]*?)"[\s\S]*?class="card-title">([\s\S]*?)<[\s\S]*?class="card-text">([\s\S]*?)<br\/>[\s\S]*?<\/i>([\s\S]*?)<\/span>[\s\S]*?<\/i>([\s\S]*?)<\/span>[\s\S]*?<strong>([\s\S]*?)<\/strong>[\s\S]*?<strong>([\s\S]*?)<\/strong>[\s\S]*?<a href="([\s\S]*?)"/g;
         match = re.exec(doc);
         var added = 0;
         while (match) {
-            page.appendItem(plugin.id + ':streamlive:' + escape(match[2]) + ':' + escape(trim(match[3])) + ':' + escape('https:' + match[1]), "video", {
-                title: trim(match[3]),
+            page.appendItem(plugin.id + ':streamlive:' + escape(match[8]) + ':' + escape(trim(match[2])) + ':' + escape('https:' + match[1]), "video", {
+                title: trim(match[2]),
                 icon: 'https:' + match[1],
-                genre: new RichText(trim(match[7]) + coloredStr('<br>Language: ', orange) + trim(match[8])),
-                tagline: new RichText((trim(match[4]) ? coloredStr('Now: ', orange) + trim(match[4].replace(/&nbsp;/g, '')).replace(/^"|"$/g, '') : '')),
+                genre: new RichText(trim(match[6]) + coloredStr('<br>Language: ', orange) + trim(match[7])),
+                tagline: new RichText((trim(match[3]) ? coloredStr('Now: ', orange) + trim(match[3].replace(/&nbsp;/g, '')).replace(/^"|"$/g, '') : '')),
                 description: new RichText(
-                    coloredStr('Viewers: ', orange) + trim(match[5]) +
-                    coloredStr(' Total views: ', orange) + trim(match[6]))
+                    coloredStr('Viewers: ', orange) + trim(match[4]) +
+                    coloredStr(' Total views: ', orange) + trim(match[5]))
             });
             match = re.exec(doc);
             page.entries++;
