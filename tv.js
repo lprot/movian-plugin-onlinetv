@@ -599,6 +599,7 @@ new page.Route('m3uGroup:(.*):(.*)', function(page, pl, groupID) {
         num++;
     }
     page.metadata.title = decodeURIComponent(groupID) + ' (' + num + ')';
+    page.loading = false;
 });
 
 function readAndParseM3U(page, pl, m3u) {
@@ -750,37 +751,39 @@ new page.Route('m3u:(.*):(.*)', function(page, pl, title) {
     page.loading = true;
     if (unescape(pl).toUpperCase().substr(0, 4) != 'RTMP') {
         if (unescape(pl).match(/oneplaylist\.space/)) {
+            page.metadata.title = 'Downloading M3U playlist...';
             var m3u = http.request(decodeURIComponent(pl)).toString().match(/<div style="[\s\S]*?">([\s\S]*?)<\/div>/)[1].split('<br />')
             readAndParseM3U(page, pl, m3u);
         } else
             readAndParseM3U(page, pl);
 
-    var num = 0;
-    for (var i in groups) {
-        page.appendItem('m3uGroup:' + pl + ':' + encodeURIComponent(groups[i]), "directory", {
-            title: groups[i]
-        });
-        num++;
-    }
-
-    for (var i in m3uItems) {
-        if (m3uItems[i].group)
-            continue;
-        var extension = m3uItems[i].url.split('.').pop().toUpperCase();
-        if ((m3uItems[i].url == m3uItems[i].title) || extension == 'M3U' || extension == 'PHP' && m3uItems[i].url.toUpperCase().substr(0, 4) != 'RTMP') {
-            page.appendItem('m3u:' + encodeURIComponent(m3uItems[i].url) + ':' + encodeURIComponent(m3uItems[i].title), "directory", {
-                title: m3uItems[i].title
+        var num = 0;
+        for (var i in groups) {
+            page.appendItem('m3uGroup:' + pl + ':' + encodeURIComponent(groups[i]), "directory", {
+                title: groups[i]
             });
             num++;
-        } else {
-            var description = '';
-            if (m3uItems[i].region && m3uItems[i].epgid)
-                description = getEpg(m3uItems[i].region, m3uItems[i].epgid);
-            addItem(page, m3uItems[i].url, m3uItems[i].title, m3uItems[i].logo, description, '', epgForTitle, m3uItems[i].useragent);
-            epgForTitle = '';
-            num++;
         }
-    }
+
+        for (var i in m3uItems) {
+            if (m3uItems[i].group)
+                continue;
+            var extension = m3uItems[i].url.split('.').pop().toUpperCase();
+            if ((m3uItems[i].url == m3uItems[i].title) || extension == 'M3U' || extension == 'PHP' && m3uItems[i].url.toUpperCase().substr(0, 4) != 'RTMP') {
+                page.appendItem('m3u:' + encodeURIComponent(m3uItems[i].url) + ':' + encodeURIComponent(m3uItems[i].title), "directory", {
+                    title: m3uItems[i].title
+                });
+                num++;
+            } else {
+                var description = '';
+                if (m3uItems[i].region && m3uItems[i].epgid)
+                    description = getEpg(m3uItems[i].region, m3uItems[i].epgid);
+                addItem(page, m3uItems[i].url, m3uItems[i].title, m3uItems[i].logo, description, '', epgForTitle, m3uItems[i].useragent);
+                epgForTitle = '';
+                num++;
+            }
+            page.metadata.title = 'Adding item ' + num + ' of ' + m3uItems.length;
+        }
     }
     if (num)
         page.metadata.title = new RichText(unescape(title) + ' (' + num + ')');
