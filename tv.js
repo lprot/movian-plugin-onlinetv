@@ -117,10 +117,9 @@ var API = 'https://www.googleapis.com/youtube/v3',
     key = "AIzaSyCSDI9_w8ROa1UoE2CNIUdDQnUhNbp9XR4"
 
 new page.Route(plugin.id + ":youtube:(.*)", function(page, title) {
-    // search for the channel
     page.loading = true;
     try {
-        doc = http.request(API + '/search', {
+        var doc = http.request(API + '/search', {
             args: {
                 part: 'snippet',
                 type: 'video',
@@ -133,7 +132,7 @@ new page.Route(plugin.id + ":youtube:(.*)", function(page, title) {
         page.redirect('youtube:video:' + JSON.parse(doc).items[0].id.videoId);
     } catch (err) {
         page.metadata.title = unescape(title);
-        page.error("Sorry, can't get channel's link :(");
+        page.error("Sorry, can't get the channel's link :(");
     }
     page.loading = false;
 });
@@ -158,21 +157,10 @@ new page.Route(plugin.id + ":tivix:(.*):(.*):(.*)", function(page, url, title, i
             match = re.exec(resp);
             continue;
         }
-        if (match[1].match(/rtmp/))
-            var link = unescape(match[1]) + ' swfUrl=http://tivix.co' + (resp.match(/data="(.*)"/) ? resp.match(/data="(.*)"/)[1] : '') + ' pageUrl=' + unescape(url);
-        else
-            var link = match[1].match('m3u8') ? 'hls:' + unescape(match[1]) : unescape(match[1]);
-        page.type = "video";
-        page.source = "videoparams:" + JSON.stringify({
-            title: unescape(title),
-            canonicalUrl: plugin.id + ':tivix:' + url + ':' + title +':' + icon,
-            icon: icon ? unescape(icon) : null,
-            sources: [{
-                url: link
-            }],
-            no_subtitle_scan: true
-        });
-        page.loading = false;
+        var link = unescape(match[1]);
+        if (link.match(/rtmp/))
+            link += ' swfUrl=http://tivix.co' + (resp.match(/data="(.*)"/) ? resp.match(/data="(.*)"/)[1] : '') + ' pageUrl=' + unescape(url);
+        playUrl(page, link, plugin.id + ':tivix:' + url + ':' + title, unescape(title), 0, icon);
         return;
     }
 
@@ -190,16 +178,31 @@ new page.Route(plugin.id + ":tivix:(.*):(.*):(.*)", function(page, url, title, i
 });
 
 new page.Route(plugin.id + ":acestream:(.*):(.*)", function(page, id, title) {
-    page.type = "video";
-    page.source = "videoparams:" + JSON.stringify({
-        title: unescape(title),
-        canonicalUrl: plugin.id + ':acestream:' + id + ':' + title,
-        sources: [{
-            url: 'hls:http://' + service.acestreamIp + ':6878/ace/manifest.m3u8?id=' + id.replace('//', '')
-        }],
-        no_subtitle_scan: true
-    });
+    playUrl(page, 'http://' + service.acestreamIp + ':6878/ace/manifest.m3u8?id=' + id.replace('//', ''), plugin.id + ':acestream:' + id + ':' + title, unescape(title));
 });
+
+function playUrl(page, url, canonicalUrl, title, mimetype, icon, subsscan, imdbid) {
+    if (url) {
+        log(url);
+        if (url.substr(0, 2) == '//') 
+            url = 'http:' + url;
+        page.type = "video";
+        page.source = "videoparams:" + JSON.stringify({
+            title: title,
+            imdbid: imdbid ? imdbid : void(0),
+            canonicalUrl: canonicalUrl,
+            icon: icon ? unescape(icon) : void(0),
+            sources: [{
+                url: url.match(/m3u8/) ? 'hls:' + url : url,
+                mimetype: mimetype ? mimetype : void(0)
+            }],
+            no_subtitle_scan: subsscan ? false : true,
+            no_fs_scan: subsscan ? false : true
+        });
+    } else 
+        page.error("Sorry, can't get the link :(");
+    page.loading = false;
+}
 
 new page.Route(plugin.id + ":file:(.*):(.*)", function(page, url, title) {
     page.loading = true;
@@ -211,24 +214,12 @@ new page.Route(plugin.id + ":file:(.*):(.*)", function(page, url, title) {
                  /source: "([\S\s]*?)"//*europa*/,  /src: '([\S\s]*?)'//*fashion*/,  /liveurl = "([\s\S]*?)"//*zvezda*/]
     for (var i = 0 ; i < expressions.length; i++) {
         var match = resp.match(expressions[i]);
-        if (match && match.toString().match(/m3u8/))
+        if (match && match.toString().match(/m3u8/)) {
+            match = match[1].replace(/\\\//g, '/');
             break;
-    }    
-    page.loading = false;
-    if (match) {
-        page.type = "video";
-        match = match[1].replace(/\\\//g, '/');
-        if (!match.match(/http:/) && !match.match(/https:/)) match = 'http:' + match;
-        log(match);
-        page.source = "videoparams:" + JSON.stringify({
-            title: unescape(title),
-            canonicalUrl: plugin.id + ':file:' + url + ':' + title,
-            sources: [{
-                url: match.match(/m3u8/) ? 'hls:' + match : match
-            }],
-            no_subtitle_scan: true
-        });
-    } else page.error("Sorry, can't get the link :(");
+        }
+    }
+    playUrl(page, match, plugin.id + ':file:' + url + ':' + title, unescape(title)); 
 });
 
 new page.Route(plugin.id + ":ovva:(.*):(.*)", function(page, url, title) {
@@ -247,20 +238,8 @@ new page.Route(plugin.id + ":ovva:(.*):(.*)", function(page, url, title) {
         json = http.request(json.balancer).toString();
         log(json);
         match = json.match(/=([\s\S]*?$)/);
-        log(match);
     }
-    page.loading = false;
-    if (match) {
-        page.type = "video";
-        page.source = "videoparams:" + JSON.stringify({
-            title: unescape(title),
-            canonicalUrl: plugin.id + ':ovva:' + url + ':' + title,
-            sources: [{
-                url: match[1].match(/m3u8/) ? 'hls:' + match[1] : match[1]
-            }],
-            no_subtitle_scan: true
-        });
-    } else page.error("Sorry, can't get the link :(");
+    playUrl(page, match, plugin.id + ':ovva:' + url + ':' + title, unescape(title));
 });
 
 var cosmonovaHeadersAreSet = false;
@@ -274,16 +253,7 @@ new page.Route(plugin.id + ":cosmonova:(.*):(.*)", function(page, url, title) {
         });
         cosmonovaHeadersAreSet = true;
     }
-    page.loading = false;
-    page.type = "video";
-    page.source = "videoparams:" + JSON.stringify({
-        title: unescape(title),
-        canonicalUrl: plugin.id + ':cosmonova:' + url + ':' + title,
-        sources: [{
-            url: 'hls:' + unescape(url)
-        }],
-        no_subtitle_scan: true
-    });
+    playUrl(page, unescape(url), plugin.id + ':cosmonova:' + url + ':' + title, unescape(title));
 });
 
 new page.Route(plugin.id + ":dailymotion:(.*):(.*)", function(page, url, title) {
@@ -291,19 +261,8 @@ new page.Route(plugin.id + ":dailymotion:(.*):(.*)", function(page, url, title) 
     page.metadata.title = unescape(title);
     var resp = http.request('http://www.dailymotion.com/embed/video/' + url).toString();
     var match = resp.match(/stream_chromecast_url":"([\S\s]*?)"/);
-    page.loading = false;
-    if (match) {
-        match = match[1].replace(/\\\//g, '/');
-        page.type = "video";
-        page.source = "videoparams:" + JSON.stringify({
-            title: unescape(title),
-            canonicalUrl: plugin.id + ':dailymotion:' + url + ':' + title,
-            sources: [{
-                url: match.match(/m3u8/) ? 'hls:' + match : match
-            }],
-            no_subtitle_scan: true
-        });
-    } else page.error("Sorry, can't get the link :(");
+    if (match) match = match[1].replace(/\\\//g, '/');
+    playUrl(page, match, plugin.id + ':dailymotion:' + url + ':' + title, unescape(title));
 });
 
 new page.Route(plugin.id + ":euronews:(.*):(.*)", function(page, country, title) {
@@ -312,61 +271,24 @@ new page.Route(plugin.id + ":euronews:(.*):(.*)", function(page, country, title)
     if (country == 'en')
         country = 'www';
     var json = JSON.parse(http.request('http://' + country + '.euronews.com/api/watchlive.json'));
-    json = JSON.parse(http.request(json.url))
-    page.loading = false;
-    if (json.primary) {
-        page.type = "video";
-        page.source = "videoparams:" + JSON.stringify({
-            title: unescape(title),
-            canonicalUrl: plugin.id + ':euronews:' + country + ':' + title,
-            sources: [{
-                url: 'hls:' + json.primary
-            }],
-            no_subtitle_scan: true
-        });
-    } else
-        page.error("Sorry, can't get the link :(");
+    json = JSON.parse(http.request(json.url));
+    playUrl(page, json.primary, plugin.id + ':euronews:' + country + ':' + title, unescape(title));
 });
 
 new page.Route(plugin.id + ":vgtrk:(.*):(.*)", function(page, url, title) {
     page.metadata.title = unescape(title);
     page.loading = true;
     var resp = http.request(unescape(url)).toString();
-    page.loading = false;
     var match = resp.match(/"auto":"([\S\s]*?)"\}/);
-    if (match) {
-        page.type = "video";
-        page.source = "videoparams:" + JSON.stringify({
-            title: unescape(title),
-            canonicalUrl: plugin.id + ':vgtrk:' + url + ':' + title,
-            sources: [{
-                url: 'hls:' + match[1].replace(/\\/g, '')
-            }],
-            no_subtitle_scan: true
-        });
-    } else
-        page.error("Sorry, can't get the link :(");
+    if (match) match = match[1].replace(/\\/g, '');
+    playUrl(page, match, plugin.id + ':vgtrk:' + url + ':' + title, unescape(title));
 });
 
 new page.Route(plugin.id + ":ts:(.*):(.*)", function(page, url, title) {
     page.metadata.title = unescape(title);
-    var link = "videoparams:" + JSON.stringify({
-        title: unescape(title),
-        no_fs_scan: true,
-        canonicalUrl: plugin.id + ':ts:' + url + ':' + title,
-        sources: [{
-            url: unescape(url),
-            mimetype: 'video/mp2t'
-        }],
-        no_subtitle_scan: true
-    });
-    page.type = 'video'
-    page.source = link;
+    page.loading = true;
+    playUrl(page, unescape(url), plugin.id + ':ts:' + url + ':' + title, unescape(title), 'video/mp2t');
 });
-
-function a(b) {
-print(b);
-}
 
 function fill_fav(page) {
     var list = eval(store.list);
@@ -465,7 +387,6 @@ if (!devId)
 
 new page.Route(plugin.id + ":playYoutv:(.*):(.*):(.*)", function(page, url, title, icon) {
     page.loading = true;
-    page.type = 'video';
     var json = JSON.parse(http.request(unescape(url), {
         headers: {
             'Device-Uuid': devId,
@@ -485,18 +406,7 @@ new page.Route(plugin.id + ":playYoutv:(.*):(.*):(.*)", function(page, url, titl
         req.setHeader('X-Requested-With', 'ShockwaveFlash/28.0.0.126');
         req.setHeader('User-Agent', UA);
     });
-
-    page.source = "videoparams:" + JSON.stringify({
-        title: unescape(title),
-        no_fs_scan: true,
-        canonicalUrl: plugin.id + ':playYoutv:' + url + ':' + title + ':' + icon,
-        icon: icon ? unescape(icon) : null,
-        sources: [{
-            url: 'hls:' + link
-        }],
-        no_subtitle_scan: true
-    });
-    page.loading = false;
+    playUrl(page, link, plugin.id + ':playYoutv:' + url + ':' + title, unescape(title), 0, icon); 
 });
 
 new page.Route(plugin.id + ":youtvStart", function(page) {
@@ -693,30 +603,31 @@ function readAndParseM3U(page, pl, m3u) {
 }
 
 function addItem(page, url, title, icon, description, genre, epgForTitle, useragent) {
+print(url);
     if (!epgForTitle) epgForTitle = '';
-    // try to detect item type
-    var match = url.match(/([\s\S]*?):(.*)/);
     var type = 'video';
-    if (match && match[1].toUpperCase().substr(0, 4) != 'HTTP' &&
-        match[1].toUpperCase().substr(0, 4) != 'RTMP') {
-        var link = plugin.id + ':' + match[1] + ":" + escape(match[2]) + ':' + escape(title);
-        if (match[1].toUpperCase() == 'M3U') { // the link is m3u list
-            var link = 'm3u:' + encodeURIComponent(match[2]) + ":" + escape(title);
-            type = 'directory'
+    var link = url.match(/([\s\S]*?):(.*)/);
+    var linkUrl = 0; 
+    var playlistType = isPlaylist(url);
+    if (link && playlistType) {
+        link = linkUrl = playlistType + ':' + encodeURIComponent(url) + ":" + escape(title);
+        type = 'directory'
+    } else 
+        if (link && !link[1].toUpperCase().match(/HTTP/) && !link[1].toUpperCase().match(/RTMP/))
+            link = linkUrl = plugin.id + ':' + url + ':' + escape(title);
+        else {
+            linkUrl = url.toUpperCase().match(/M3U8/) || url.toUpperCase().match(/\.SMIL/) ? 'hls:' + url : url;
+            link = "videoparams:" + JSON.stringify({
+                title: title,
+                icon: icon ? icon : void(0),
+                sources: [{
+                    url: linkUrl
+                }],
+                no_fs_scan: true,
+                no_subtitle_scan: true
+            });
         }
-        var linkUrl = link;
-    } else {
-        var link = "videoparams:" + JSON.stringify({
-            title: title,
-            icon: icon,
-            sources: [{
-                url: url.match(/m3u8/) || url.match(/\.smil/) ? 'hls:' + url : url
-            }],
-            no_fs_scan: true,
-            no_subtitle_scan: true
-        });
-        var linkUrl = url;
-    }
+
     // get icon from description
     if (!icon && description) {
         icon = description.match(/img src="(\s\S*?)"/)
@@ -746,65 +657,60 @@ function addItem(page, url, title, icon, description, genre, epgForTitle, userag
     }
 }
 
-function isM3U(pl) {
+function isPlaylist(pl) {
     pl = unescape(pl).toUpperCase();
     var extension = pl.split('.').pop().toUpperCase();
-    if (extension == 'M3U' || pl.match(/TYPE=M3U/) || pl.match(/EXPORTALL/) || pl.match(/BIT.DO/) || pl.match(/BIT.LY/) ||
-        pl.match(/GOO.GL/) || pl.match(/TINYURL.COM/)) return true;
+    if (pl.substr(0, 4) == 'XML:') 
+        return 'xml';
+    if (pl.substr(0, 4) == 'M3U:' || extension == 'M3U' || extension == 'PHP' || 
+        pl.match(/TYPE=M3U/) || pl.match(/BIT.DO/) || pl.match(/BIT.LY/) || pl.match(/GOO.GL/) || pl.match(/TINYURL.COM/)) 
+        return 'm3u';
     return false;
+}
+
+function showM3U(page, pl) {
+    var num = 0;
+    for (var i in groups) {
+        page.appendItem('m3uGroup:' + pl + ':' + encodeURIComponent(groups[i]), "directory", {
+            title: groups[i]
+        });
+        num++;
+    }
+
+    for (var i in m3uItems) {
+        if (m3uItems[i].group)
+            continue;
+        var extension = m3uItems[i].url.split('.').pop().toUpperCase();
+        if (isPlaylist(m3uItems[i].url) || (m3uItems[i].url == m3uItems[i].title)) {
+            var route = 'm3u:';
+            if (m3uItems[i].url.substr(0, 4) == 'xml:') {
+                m3uItems[i].url = m3uItems[i].url.replace('xml:', '');
+                route = 'xml:';
+            }
+            if (m3uItems[i].url.substr(0, 4) == 'm3u:')
+                m3uItems[i].url = m3uItems[i].url.replace('m3u:', '');
+            page.appendItem(route + encodeURIComponent(m3uItems[i].url) + ':' + encodeURIComponent(m3uItems[i].title), "directory", {
+                title: m3uItems[i].title
+            });
+            num++;
+        } else {
+            var description = '';
+            if (m3uItems[i].region && m3uItems[i].epgid)
+                description = getEpg(m3uItems[i].region, m3uItems[i].epgid);
+            addItem(page, m3uItems[i].url, m3uItems[i].title, m3uItems[i].logo, description, '', epgForTitle, m3uItems[i].useragent);
+            epgForTitle = '';
+            num++;
+        }
+        page.metadata.title = 'Adding item ' + num + ' of ' + m3uItems.length;
+    }
+    return num;
 }
 
 new page.Route('m3u:(.*):(.*)', function(page, pl, title) {
     setPageHeader(page, unescape(title));
     page.loading = true;
-    if (isM3U(pl)) {
-        if (unescape(pl).match(/oneplaylist\.space/)) {
-            page.metadata.title = 'Downloading M3U playlist...';
-            var m3u = http.request(decodeURIComponent(pl)).toString().match(/<div style="[\s\S]*?">([\s\S]*?)<\/div>/)[1].split('<br />')
-            readAndParseM3U(page, pl, m3u);
-        } else
-            readAndParseM3U(page, pl);
-
-        var num = 0;
-        for (var i in groups) {
-            page.appendItem('m3uGroup:' + pl + ':' + encodeURIComponent(groups[i]), "directory", {
-                title: groups[i]
-            });
-            num++;
-        }
-
-        for (var i in m3uItems) {
-            if (m3uItems[i].group)
-                continue;
-            var extension = m3uItems[i].url.split('.').pop().toUpperCase();
-            if (m3uItems[i].url.toUpperCase().match(/TYPE=M3U/) || (m3uItems[i].url == m3uItems[i].title) || extension == 'M3U' || extension == 'PHP' && m3uItems[i].url.toUpperCase().substr(0, 4) != 'RTMP') {
-                page.appendItem('m3u:' + encodeURIComponent(m3uItems[i].url) + ':' + encodeURIComponent(m3uItems[i].title), "directory", {
-                    title: m3uItems[i].title
-                });
-                num++;
-            } else {
-                var description = '';
-                if (m3uItems[i].region && m3uItems[i].epgid)
-                    description = getEpg(m3uItems[i].region, m3uItems[i].epgid);
-                addItem(page, m3uItems[i].url, m3uItems[i].title, m3uItems[i].logo, description, '', epgForTitle, m3uItems[i].useragent);
-                epgForTitle = '';
-                num++;
-            }
-            page.metadata.title = 'Adding item ' + num + ' of ' + m3uItems.length;
-        }
-    }
-    if (num)
-        page.metadata.title = new RichText(unescape(title) + ' (' + num + ')');
-    else { //try as m3u8
-        page.type = 'video';
-        page.source = "videoparams:" + JSON.stringify({
-            title: unescape(title),
-            sources: [{
-                url: unescape(pl).match(/m3u8/) ? 'hls:' + unescape(pl) : unescape(pl)
-            }],
-            no_subtitle_scan: true
-        });
-    }
+    readAndParseM3U(page, pl);
+    page.metadata.title = new RichText(unescape(title) + ' (' + showM3U(page, pl) + ')');
     page.loading = false;
 });
 
@@ -964,9 +870,7 @@ new page.Route('xml:(.*):(.*)', function(page, pl, pageTitle) {
     var channels = doc.items.filterNodes('channel');
     var num = 0;
     for (var i = 0; i < channels.length; i++) {
-        //if (channels[i].category_id && channels[i].category_id != 1) continue;
         var title = string.entityDecode(channels[i].title);
-        //log(title);
         title = setColors(title);
         var playlist = channels[i].playlist_url;
         var description = channels[i].description ? channels[i].description : null;
@@ -991,6 +895,7 @@ new page.Route('xml:(.*):(.*)', function(page, pl, pageTitle) {
         genre = channels[i].category_id ? categories[channels[i].category_id] : null;
         if (playlist && playlist != 'null' && !channels[i].parser) {
             var extension = playlist.split('.').pop().toLowerCase();
+            if (playlist.match(/m3u8/)) extension = 'm3u';
             if (extension != 'm3u')
                 extension = 'xml';
             var url = extension + ':' + encodeURIComponent(playlist) + ':' + escape(title);
@@ -1084,7 +989,7 @@ function getIMDBid(title) {
 new page.Route(plugin.id + ":streamlive:(.*):(.*):(.*)", function(page, url, title, icon) {
     page.loading = true;
     var doc = http.request(unescape(url)).toString();
-    var imdbid = lnk = no_subtitle_scan = 0;
+    var imdbid = lnk = scansubs = 0;
     var mimetype = 'video/quicktime';
     var direct = doc.match(/<source src="([\s\S]*?)"/);
     if (direct) {
@@ -1092,14 +997,14 @@ new page.Route(plugin.id + ":streamlive:(.*):(.*):(.*)", function(page, url, tit
         imdbid = getIMDBid(title);
     } else {
         mimetype = 'application/vnd.apple.mpegurl'
-        no_subtitle_scan = true;
+        scansubs = true;
         var re = /return\(([\s\S]*?)innerHTML\)/g;
         var match = re.exec(doc);
         while (match) {
             // 1-lnk, 2-array id, 3-inner id
             var tmp = match[1].match(/return\(\[([\s\S]*?)\][\s\S]*?\+ ([\s\S]*?)\.[\s\S]*?getElementById\("([\s\S]*?)"\)\./);
             if (tmp) {
-                lnk = 'hls:https:' + tmp[1].replace(/[",\s]/g, '').replace(/\\\//g, '/');
+                lnk = 'https:' + tmp[1].replace(/[",\s]/g, '').replace(/\\\//g, '/');
                 var re2 = new RegExp(tmp[2] + ' = ([\\s\\S]*?);');
                 var tmp2 = re2.exec(doc);
                 lnk += tmp2[1].replace(/[\[\]",\s]/g, '');
@@ -1112,19 +1017,7 @@ new page.Route(plugin.id + ":streamlive:(.*):(.*):(.*)", function(page, url, tit
             match = re.exec(doc);
         }
     }
-    page.loading = false;
-    page.type = 'video';
-    page.source = "videoparams:" + JSON.stringify({
-        title: unescape(title),
-        canonicalUrl: plugin.id + ':streamlive:' + url + ':' + title + ':' + icon,
-        imdbid: imdbid,
-        icon: unescape(icon),
-        sources: [{
-            url: lnk,
-            mimetype: mimetype
-        }],
-        no_subtitle_scan: no_subtitle_scan
-    });
+    playUrl(page, lnk, plugin.id + ':streamlive:' + url + ':' + title, unescape(title), mimetype, icon, !scansubs, imdbid);
 });
 
 new page.Route(plugin.id + ":streamliveStart", function(page) {
@@ -1216,19 +1109,7 @@ var idcJson;
 new page.Route(plugin.id + ":idcPlay:(.*):(.*)", function(page, id, title) {
     page.loading = true;
     var json = JSON.parse(http.request('http://iptvn.idc.md/api/json/get_url?cid=' + id));
-    page.type = 'video'
-    var link = "videoparams:" + JSON.stringify({
-        title: decodeURI(title),
-        no_fs_scan: true,
-        canonicalUrl: plugin.id + ':idcPlay:' + id + ':' + title,
-        sources: [{
-            url: unescape(json.url).replace('http/ts', 'http'),
-            mimetype: 'video/mp2t'
-        }],
-        no_subtitle_scan: true
-    });
-    page.source = link;
-    page.loading = false;
+    playUrl(page, unescape(json.url).replace('http/ts', 'http'), plugin.id + ':idcPlay:' + id + ':' + title, decodeURI(title), 'video/mp2t');
 });
 
 
@@ -1351,22 +1232,7 @@ new page.Route(plugin.id + ":playgoAtDee:(.*):(.*)", function(page, url, title) 
             var link = match[2] + ' playpath=' + playpath + ' swfUrl=http://static3.sawlive.tv/player.swf pageUrl=' + referer;
         }
     }
-    page.loading = false;
-    if (link) {
-        log(link);
-        link = "videoparams:" + JSON.stringify({
-            title: unescape(title),
-            no_fs_scan: true,
-            canonicalUrl: plugin.id + ':playgoAtDee:' + url + ':' + title,
-            sources: [{
-                url: link.indexOf('m3u8') >= 0 ? 'hls:' + link : link
-            }],
-            no_subtitle_scan: true
-        });
-        page.type = 'video';
-        page.source = link;
-    } else
-        page.error("Can't get the link :( Maybe stream is offline?");
+    playUrl(page, link, plugin.id + ':playgoAtDee:' + url + ':' + title, unescape(title));
 });
 
 new page.Route(plugin.id + ":goAtDeeStart", function(page) {
@@ -1396,10 +1262,21 @@ new page.Route(plugin.id + ":goAtDeeStart", function(page) {
     page.loading = false;
 });
 
+new page.Route(plugin.id + ":loadOnePlaylist", function(page) {
+    setPageHeader(page, 'All channels');
+    page.loading = true;
+    page.metadata.title = 'Downloading M3U playlist...';
+    var m3u = http.request('https://www.oneplaylist.space/database/exportall').toString().match(/<div style="[\s\S]*?">([\s\S]*?)<\/div>/)[1].split('<br />')
+    readAndParseM3U(page, 0, m3u);
+    showM3U(page);
+    page.loading = false;
+});
+
+
 new page.Route(plugin.id + ":onePlaylistStart", function(page) {
     setPageHeader(page, 'Oneplaylist.space - Stream Database');
     page.loading = true;
-    page.appendItem('m3u:' + escape('https://www.oneplaylist.space/database/exportall') + ':' + escape('All channels'), "directory", {
+    page.appendItem(plugin.id + ':loadOnePlaylist', "directory", {
         title: 'All channels'
     });
 
@@ -1412,15 +1289,11 @@ new page.Route(plugin.id + ":onePlaylistStart", function(page) {
     var re = /<span style="color:#000">([\s\S]*?) \| <\/span><span style="color:#06C">([\s\S]*?)<\/span>/g;
     var match = re.exec(doc);
     while (match) {
-        page.appendItem('m3u:' + escape(match[2]) + ':' + escape(match[1]), "video", {
-            title: match[1],
-            description: match[2]
-        });
+        addItem(page, match[2], match[1]);
         match = re.exec(doc);
     }
     page.loading = false;
 });
-
 
 // Start page
 new page.Route(plugin.id + ":start", function(page) {
