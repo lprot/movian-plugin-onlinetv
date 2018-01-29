@@ -39,7 +39,7 @@ var UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, l
 
 function setPageHeader(page, title) {
     if (page.metadata) {
-        page.metadata.title = new RichText(title);
+        page.metadata.title = new RichText(decodeURIComponent(title));
         page.metadata.logo = logo;
     }
     page.type = "directory";
@@ -603,7 +603,6 @@ function readAndParseM3U(page, pl, m3u) {
 }
 
 function addItem(page, url, title, icon, description, genre, epgForTitle, useragent) {
-print(url);
     if (!epgForTitle) epgForTitle = '';
     var type = 'video';
     var link = url.match(/([\s\S]*?):(.*)/);
@@ -710,7 +709,7 @@ new page.Route('m3u:(.*):(.*)', function(page, pl, title) {
     setPageHeader(page, unescape(title));
     page.loading = true;
     readAndParseM3U(page, pl);
-    page.metadata.title = new RichText(unescape(title) + ' (' + showM3U(page, pl) + ')');
+    page.metadata.title = new RichText(decodeURIComponent(title) + ' (' + showM3U(page, pl) + ')');
     page.loading = false;
 });
 
@@ -1266,9 +1265,11 @@ new page.Route(plugin.id + ":loadOnePlaylist", function(page) {
     setPageHeader(page, 'All channels');
     page.loading = true;
     page.metadata.title = 'Downloading M3U playlist...';
-    var m3u = http.request('https://www.oneplaylist.space/database/exportall').toString().match(/<div style="[\s\S]*?">([\s\S]*?)<\/div>/)[1].split('<br />')
+    var m3u = http.request('https://www.oneplaylist.space/database/exportall').toString();
+    page.metadata.title = 'Processing the playlist...';
+    m3u = m3u.match(/<div style="[\s\S]*?">([\s\S]*?)<\/div>/)[1].split('<br />')
     readAndParseM3U(page, 0, m3u);
-    showM3U(page);
+    page.metadata.title =  'All channels (' + showM3U(page) + ')';
     page.loading = false;
 });
 
@@ -1297,7 +1298,9 @@ new page.Route(plugin.id + ":onePlaylistStart", function(page) {
 
 // Start page
 new page.Route(plugin.id + ":start", function(page) {
-    setPageHeader(page, plugin.title);    
+    setPageHeader(page, plugin.title);
+    page.metadata.icon = logo;
+    
     if (!service.disableMyFavorites) {
         page.appendItem(plugin.id + ":favorites", "directory", {
             title: "My Favorites"
@@ -1327,6 +1330,8 @@ new page.Route(plugin.id + ":start", function(page) {
         if (!i) popup.notify('There are no playlists to delete.', 2);
     });
 
+    showPlaylist(page);
+
     if (!service.disableSampleList) {
         var item = page.appendItem('m3u:http%3A%2F%2Fbit.ly%2F1Hbuve6:Sample M3U list', "directory", {
             title: 'Sample M3U list'
@@ -1339,27 +1344,30 @@ new page.Route(plugin.id + ":start", function(page) {
         });
     }
 
-    showPlaylist(page);
-
     page.appendItem("", "separator", {
         title: 'Providers'
     });
     page.appendItem(plugin.id + ":onePlaylistStart", "directory", {
-        title: "Oneplaylist.space"
+        title: "Oneplaylist.space",
+        icon: 'https://www.oneplaylist.space/images/streamdatabase.jpg'
     });
     page.appendItem(plugin.id + ":streamliveStart", "directory", {
-        title: "StreamLive.to"
+        title: "StreamLive.to",
+        icon: 'http://www.streamlive.to/images/logo.png'
     });
     page.appendItem(plugin.id + ":tivixStart", "directory", {
-        title: "Tivix.co"
+        title: "Tivix.co",
+        icon: 'http://tivix.co/templates/Default/dleimages/logo.png'
     });
     page.appendItem(plugin.id + ":youtvStart", "directory", {
-        title: "Youtv.com.ua"
+        title: "Youtv.com.ua",
+        icon: 'http://youtv.com.ua/images/ytvcolor.svg'
     });
     page.appendItem(plugin.id + ":goAtDeeStart", "directory", {
         title: "goATDee.Net"
     });
     page.appendItem(plugin.id + ":idcStart", "directory", {
-        title: "Idc.md"
+        title: "Idc.md",
+        icon: 'http://idc.md/bitrix/templates/shop/images/logotype.png'
     });
 });
