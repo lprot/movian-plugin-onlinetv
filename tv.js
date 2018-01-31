@@ -505,7 +505,7 @@ new page.Route('m3uGroup:(.*):(.*)', function(page, pl, groupID) {
     for (var i in m3uItems) {
         if (decodeURIComponent(groupID) != m3uItems[i].group)
             continue;
-        addItem(page, m3uItems[i].url, m3uItems[i].title, m3uItems[i].logo, '', '', '', m3uItems[i].useragent);
+        addItem(page, m3uItems[i].url, m3uItems[i].title, m3uItems[i].logo, '', '', '', m3uItems[i].headers);
         num++;
     }
     page.metadata.title = decodeURIComponent(groupID) + ' (' + num + ')';
@@ -528,7 +528,7 @@ function readAndParseM3U(page, pl, m3u) {
     var line = '',
         m3uRegion = '',
         m3uEpgId = '',
-        m3uUserAgent = '';
+        m3uHeaders = '';
     for (var i = 0; i < m3u.length; i++) {
         page.metadata.title = 'Parsing M3U list. Line ' + i + ' of ' + m3u.length;
         line = m3u[i].trim();
@@ -580,13 +580,8 @@ function readAndParseM3U(page, pl, m3u) {
                     line = 'acestream://' + line;
                 if (m3uImage && m3uImage.substr(0, 4) != 'http')
                     m3uImage = line.match(/^.+?[^\/:](?=[?\/]|$)/) + '/' + m3uImage;
-                var tmp = line.split('|');
-                if (tmp[1]) {
-                    line = tmp[0];
-                    tmp = tmp[1].match(/User-Agent=([\s\S]*>?)/);
-                    if (tmp)
-                        m3uUserAgent = unescape(tmp[1].replace(/\"/g, ''));
-                }
+                m3uHeaders = line.match(/([\s\S]*?)\|([\s\S]*?)$/);
+                m3uHeaders ? line = m3uHeaders[1] : '';
                 m3uItems.push({
                     title: m3uTitle ? m3uTitle : line,
                     url: line,
@@ -594,15 +589,15 @@ function readAndParseM3U(page, pl, m3u) {
                     logo: m3uImage,
                     region: m3uRegion,
                     epgid: m3uEpgId,
-                    useragent: m3uUserAgent
+                    headers: m3uHeaders ? m3uHeaders[2] : void(0)
                 });
-                m3uUrl = '', m3uTitle = '', m3uImage = '', m3uEpgId = '', m3uUserAgent = ''; //, m3uGroup = '';
+                m3uUrl = '', m3uTitle = '', m3uImage = '', m3uEpgId = '', m3uHeaders = ''; //, m3uGroup = '';
         }
     }
     page.metadata.title = title;
 }
 
-function addItem(page, url, title, icon, description, genre, epgForTitle, useragent) {
+function addItem(page, url, title, icon, description, genre, epgForTitle, headers) {
     if (!epgForTitle) epgForTitle = '';
     var type = 'video';
     var link = url.match(/([\s\S]*?):(.*)/);
@@ -629,7 +624,7 @@ function addItem(page, url, title, icon, description, genre, epgForTitle, userag
 
     // get icon from description
     if (!icon && description) {
-        icon = description.match(/img src="(\s\S*?)"/)
+        icon = description.match(/img src="([\s\S]*?)"/)
         if (icon) icon = icon[1];
     }
     if (!linkUrl) {
@@ -640,11 +635,15 @@ function addItem(page, url, title, icon, description, genre, epgForTitle, userag
             description: new RichText(description)
         });
     } else {
-        if (useragent) {
+        if (headers)
             io.httpInspectorCreate('.*' + url.replace('http://', '').replace('https://', '').split(/[/?#]/)[0].replace(/\./g, '\\.') + '.*', function(req) {
-                req.setHeader('User-Agent', useragent);
+                var tmp = headers.split('|');
+                for (i in tmp) {
+                    var header = unescape(tmp[i].replace(/\"/g, '')).match(/([\s\S]*?)=([\s\S]*?)$/);   
+                    if (header)
+                       req.setHeader(header[1], header[2]);
+                }
             });
-        }
         var item = page.appendItem(link, type, {
             title: new RichText(title + epgForTitle),
             icon: icon ? icon : null,
@@ -696,7 +695,7 @@ function showM3U(page, pl) {
             var description = '';
             if (m3uItems[i].region && m3uItems[i].epgid)
                 description = getEpg(m3uItems[i].region, m3uItems[i].epgid);
-            addItem(page, m3uItems[i].url, m3uItems[i].title, m3uItems[i].logo, description, '', epgForTitle, m3uItems[i].useragent);
+            addItem(page, m3uItems[i].url, m3uItems[i].title, m3uItems[i].logo, description, '', epgForTitle, m3uItems[i].headers);
             epgForTitle = '';
             num++;
         }
