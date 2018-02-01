@@ -66,6 +66,9 @@ settings.createBool('disableSampleList', "Don't show Sample M3U list", false, fu
 settings.createBool('disableSampleXMLList', "Don't show Sample XML list", false, function(v) {
     service.disableSampleXMLList = v;
 });
+settings.createBool('disableProvidersList', "Don't show Provider list", false, function(v) {
+    service.disableProviderList = v;
+});
 settings.createBool('disableEPG', "Don't fetch EPG", true, function(v) {
     service.disableEPG = v;
 });
@@ -183,7 +186,7 @@ new page.Route(plugin.id + ":acestream:(.*):(.*)", function(page, id, title) {
 
 function playUrl(page, url, canonicalUrl, title, mimetype, icon, subsscan, imdbid) {
     if (url) {
-        log(url);
+        log('playUrl: ' + url);
         if (url.substr(0, 2) == '//') 
             url = 'http:' + url;
         page.type = "video";
@@ -211,7 +214,8 @@ new page.Route(plugin.id + ":file:(.*):(.*)", function(page, url, title) {
     var expressions = [/'file': "([\S\s]*?)"/, /file: "([\S\s]*?)"//*giniko*/, /file": "([\s\S]*?)"/, /file: '([\s\S]*?)'/,
                  /file: '([\s\S]*?)'/, /file:"([\s\S]*?) or //*chas*/, /file:"([\s\S]*?)"//*chastv fanattv*/, 
                  /hlsURL = '([\S\s]*?)'//*ntv*/,  /url: '([\S\s]*?)'//*trk uraine*/,  /source: '([\S\s]*?)'//*donbass*/, 
-                 /source: "([\S\s]*?)"//*europa*/,  /src: '([\S\s]*?)'//*fashion*/,  /liveurl = "([\s\S]*?)"//*zvezda*/]
+                 /source: "([\S\s]*?)"//*europa*/,  /src: '([\S\s]*?)'//*fashion*/,  /liveurl = "([\s\S]*?)"//*zvezda*/, 
+                 /source src='([\S\s]*?)'//*onlinestream*/]
     for (var i = 0 ; i < expressions.length; i++) {
         var match = resp.match(expressions[i]);
         if (match && match.toString().match(/m3u8/)) {
@@ -233,11 +237,12 @@ new page.Route(plugin.id + ":ovva:(.*):(.*)", function(page, url, title) {
     var json = match.match(/ovva-player","([\s\S]*?)"/);
     if (json)
         json = JSON.parse(Duktape.dec('base64', json[1]));
-    match = 0;
+    match = 0;    
     if (json) {
         json = http.request(json.balancer).toString();
         log(json);
         match = json.match(/=([\s\S]*?$)/);
+        if (match) match = match[1];
     }
     playUrl(page, match, plugin.id + ':ovva:' + url + ':' + title, unescape(title));
 });
@@ -1342,31 +1347,33 @@ new page.Route(plugin.id + ":start", function(page) {
             title: 'Sample XML list'
         });
     }
-
-    page.appendItem("", "separator", {
-        title: 'Providers'
-    });
-    page.appendItem(plugin.id + ":onePlaylistStart", "directory", {
-        title: "Oneplaylist.space",
-        icon: 'https://www.oneplaylist.space/images/streamdatabase.jpg'
-    });
-    page.appendItem(plugin.id + ":streamliveStart", "directory", {
-        title: "StreamLive.to",
-        icon: 'http://www.streamlive.to/images/logo.png'
-    });
-    page.appendItem(plugin.id + ":tivixStart", "directory", {
-        title: "Tivix.co",
-        icon: 'http://tivix.co/templates/Default/dleimages/logo.png'
-    });
-    page.appendItem(plugin.id + ":youtvStart", "directory", {
-        title: "Youtv.com.ua",
-        icon: 'http://youtv.com.ua/images/ytvcolor.svg'
-    });
-    page.appendItem(plugin.id + ":goAtDeeStart", "directory", {
-        title: "goATDee.Net"
-    });
-    page.appendItem(plugin.id + ":idcStart", "directory", {
-        title: "Idc.md",
-        icon: 'http://idc.md/bitrix/templates/shop/images/logotype.png'
-    });
+    
+    if (!service.disableProviderList) {
+        page.appendItem("", "separator", {
+            title: 'Providers'
+        });
+        page.appendItem(plugin.id + ":onePlaylistStart", "directory", {
+            title: "Oneplaylist.space",
+            icon: 'https://www.oneplaylist.space/images/streamdatabase.jpg'
+        });
+        page.appendItem(plugin.id + ":streamliveStart", "directory", {
+            title: "StreamLive.to",
+            icon: 'http://www.streamlive.to/images/logo.png'
+        });
+        page.appendItem(plugin.id + ":tivixStart", "directory", {
+            title: "Tivix.co",
+            icon: 'http://tivix.co/templates/Default/dleimages/logo.png'
+        });
+        page.appendItem(plugin.id + ":youtvStart", "directory", {
+            title: "Youtv.com.ua",
+            icon: 'http://youtv.com.ua/images/ytvcolor.svg'
+        });
+        page.appendItem(plugin.id + ":goAtDeeStart", "directory", {
+            title: "goATDee.Net"
+        });
+        page.appendItem(plugin.id + ":idcStart", "directory", {
+            title: "Idc.md",
+            icon: 'http://idc.md/bitrix/templates/shop/images/logotype.png'
+        });
+    }
 });
