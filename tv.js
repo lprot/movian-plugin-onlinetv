@@ -662,10 +662,11 @@ function addItem(page, url, title, icon, description, genre, epgForTitle, header
 
 function isPlaylist(pl) {
     pl = unescape(pl).toUpperCase();
-    var extension = pl.split('.').pop().toUpperCase();
+    var extension = pl.split('.').pop();
+    var lastPart = pl.split("/").pop();
     if (pl.substr(0, 4) == 'XML:') 
         return 'xml';
-    if (pl.substr(0, 4) == 'M3U:' || extension == 'M3U' || extension == 'PHP' || 
+    if (pl.substr(0, 4) == 'M3U:' || extension == 'M3U' || lastPart == 'PLAYLIST' || 
         pl.match(/TYPE=M3U/) || pl.match(/BIT.DO/) || pl.match(/BIT.LY/) || pl.match(/GOO.GL/) || pl.match(/TINYURL.COM/)) 
         return 'm3u';
     return false;
