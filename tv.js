@@ -522,7 +522,12 @@ function readAndParseM3U(page, pl, m3u) {
     page.loading = true;
     if (!m3u) {
         page.metadata.title = 'Downloading M3U list...';
-        m3u = http.request(decodeURIComponent(pl)).toString().split('\n');
+        log('Fetching: ' + decodeURIComponent(pl));
+        m3u = http.request(decodeURIComponent(pl), {
+            headers: {
+                'User-Agent': UA
+            }
+        }).toString().split('\n');
     };
     theLastList = pl;
     m3uItems = [], groups = [];
@@ -995,10 +1000,9 @@ new page.Route(plugin.id + ":streamlive:(.*):(.*):(.*)", function(page, url, tit
     var doc = http.request(unescape(url)).toString();
     var imdbid = lnk = scansubs = 0;
     var mimetype = 'video/quicktime';
-    var direct = doc.match(/<source src="([\s\S]*?)"/);
+    var direct = doc.match(/"false" type="text\/javascript">([\s\S]*?)<\/script>/);
     if (direct) {
-        lnk = direct[1];
-        imdbid = getIMDBid(title);
+        lnk = eval(direct[1]);
     } else {
         mimetype = 'application/vnd.apple.mpegurl'
         scansubs = true;
@@ -1056,18 +1060,19 @@ new page.Route(plugin.id + ":streamliveStart", function(page) {
         page.loading = false;
 
         // 1-icon, 2-title, 3-what's on, 4-viewers, 5-totalviews, 6-genre, 7-language, 8-link
-        var re = /class="card-img-top"[\s\S]*?src="([\s\S]*?)"[\s\S]*?class="card-title">([\s\S]*?)<[\s\S]*?class="card-text">([\s\S]*?)<br\/>[\s\S]*?<\/i>([\s\S]*?)<\/span>[\s\S]*?<\/i>([\s\S]*?)<\/span>[\s\S]*?<strong>([\s\S]*?)<\/strong>[\s\S]*?<strong>([\s\S]*?)<\/strong>[\s\S]*?<a href="([\s\S]*?)"/g;
+        //1-link, 2-title, 3-icon, 4-language, 5-description, 6-viewers, 7-totalviews, 8-genre
+        var re = /class="ml-item"[\s\S]*?href="([\s\S]*?)"[\s\S]*?title="([\s\S]*?)">[\s\S]*?src="([\s\S]*?)"[\s\S]*?class="jt-info">Language: ([\s\S]*?)<\/div>[\s\S]*?class="f-desc">([\s\S]*?)<\/p>[\s\S]*?<a href="#">([\s\S]*?)<\/a>[\s\S]*?<a href="#">([\s\S]*?)<\/a>[\s\S]*?<a href="#">([\s\S]*?)<\/a>/g;
         match = re.exec(doc);
         var added = 0;
         while (match) {
-            page.appendItem(plugin.id + ':streamlive:' + escape(match[8]) + ':' + escape(trim(match[2])) + ':' + escape('https:' + match[1]), "video", {
+            page.appendItem(plugin.id + ':streamlive:' + escape(match[1]) + ':' + escape(trim(match[2])) + ':' + escape('https:' + match[3]), "video", {
                 title: trim(match[2]),
-                icon: 'https:' + match[1],
-                genre: new RichText(trim(match[6]) + coloredStr('<br>Language: ', orange) + trim(match[7])),
-                tagline: new RichText((trim(match[3]) ? coloredStr('Now: ', orange) + trim(match[3].replace(/&nbsp;/g, '')).replace(/^"|"$/g, '') : '')),
+                icon: 'https:' + match[3],
+                genre: new RichText(trim(match[8]) + coloredStr('<br>Language: ', orange) + trim(match[4])),
+                tagline: new RichText((trim(match[5]) ? coloredStr('Now: ', orange) + trim(match[5].replace(/&nbsp;/g, '')).replace(/^"|"$/g, '') : '')),
                 description: new RichText(
-                    coloredStr('Viewers: ', orange) + trim(match[4]) +
-                    coloredStr(' Total views: ', orange) + trim(match[5]))
+                    coloredStr('Viewers: ', orange) + trim(match[6]) +
+                    coloredStr(' Total views: ', orange) + trim(match[7]))
             });
             match = re.exec(doc);
             page.entries++;
