@@ -672,7 +672,8 @@ function isPlaylist(pl) {
     if (pl.substr(0, 4) == 'XML:') 
         return 'xml';
     if (pl.substr(0, 4) == 'M3U:' || extension == 'M3U' || lastPart == 'PLAYLIST' || 
-        pl.match(/TYPE=M3U/) || pl.match(/BIT.DO/) || pl.match(/BIT.LY/) || pl.match(/GOO.GL/) || pl.match(/TINYURL.COM/)) 
+        pl.match(/TYPE=M3U/) || pl.match(/BIT.DO/) || pl.match(/BIT.LY/) || pl.match(/GOO.GL/) || 
+	pl.match(/TINYURL.COM/) || pl.match(/RAW.GITHUB/)) 
         return 'm3u';
     return false;
 }
@@ -680,9 +681,10 @@ function isPlaylist(pl) {
 function showM3U(page, pl) {
     var num = 0;
     for (var i in groups) {
-        page.appendItem('m3uGroup:' + pl + ':' + encodeURIComponent(groups[i]), "directory", {
-            title: groups[i]
-        });
+	if (groups[i])
+            page.appendItem('m3uGroup:' + pl + ':' + encodeURIComponent(groups[i]), "directory", {
+                title: groups[i]
+            });
         num++;
     }
 
