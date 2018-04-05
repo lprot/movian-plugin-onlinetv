@@ -207,7 +207,7 @@ function playUrl(page, url, canonicalUrl, title, mimetype, icon, subsscan, imdbi
     page.loading = false;
 }
 
-new page.Route(plugin.id + ":file:(.*):(.*)", function(page, url, title) {
+new page.Route(plugin.id + ":m3u8:(.*):(.*)", function(page, url, title) {
     page.loading = true;
     page.metadata.title = unescape(title);
     var resp = http.request('http://' + unescape(url)).toString();
@@ -219,7 +219,7 @@ new page.Route(plugin.id + ":file:(.*):(.*)", function(page, url, title) {
             break;
         }
     }
-    playUrl(page, match, plugin.id + ':file:' + url + ':' + title, unescape(title)); 
+    playUrl(page, match, plugin.id + ':m3u8:' + url + ':' + title, unescape(title)); 
 });
 
 new page.Route(plugin.id + ":ovva:(.*):(.*)", function(page, url, title) {
