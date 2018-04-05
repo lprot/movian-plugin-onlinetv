@@ -211,15 +211,11 @@ new page.Route(plugin.id + ":file:(.*):(.*)", function(page, url, title) {
     page.loading = true;
     page.metadata.title = unescape(title);
     var resp = http.request('http://' + unescape(url)).toString();
-    var expressions = [/'file': "([\S\s]*?)"/, /file: "([\S\s]*?)"//*giniko*/, /file": "([\s\S]*?)"/, /file: '([\s\S]*?)'/,
-                 /file: '([\s\S]*?)'/, /file:"([\s\S]*?) or //*chas*/, /file:"([\s\S]*?)"//*chastv fanattv*/, 
-                 /hlsURL = '([\S\s]*?)'//*ntv*/,  /url: '([\S\s]*?)'//*trk uraine*/,  /source: '([\S\s]*?)'//*donbass*/, 
-                 /source: "([\S\s]*?)"//*europa*/,  /src: '([\S\s]*?)'//*fashion*/,  /liveurl = "([\s\S]*?)"//*zvezda*/, 
-                 /source src='([\S\s]*?)'//*onlinestream*/]
-    for (var i = 0 ; i < expressions.length; i++) {
-        var match = resp.match(expressions[i]);
-        if (match && match.toString().match(/m3u8/)) {
-            match = match[1].replace(/\\\//g, '/');
+    var match = resp.match(/[^ "|\']+m3u8[^ "|\']*/g);
+    for (var i in match) {
+        var elem = match[i].replace(/\\\//g, '/').replace(/^\/\//g, 'http://');
+        if (elem.match(/^http/)) {
+            match = elem;
             break;
         }
     }
@@ -247,20 +243,6 @@ new page.Route(plugin.id + ":ovva:(.*):(.*)", function(page, url, title) {
     playUrl(page, match, plugin.id + ':ovva:' + url + ':' + title, unescape(title));
 });
 
-var cosmonovaHeadersAreSet = false;
-new page.Route(plugin.id + ":cosmonova:(.*):(.*)", function(page, url, title) {
-    page.loading = true;
-    page.metadata.title = unescape(title);
-    if (!cosmonovaHeadersAreSet) {
-        io.httpInspectorCreate('.*cosmonova\\.net\\.ua.*', function(req) {
-            req.setHeader('User-Agent', UA);
-            req.setHeader('referer', 'http://live-uapershiy.cosmonova.kiev.ua/online.php?width=743&height=417&lang=ua&autostart=0');
-        });
-        cosmonovaHeadersAreSet = true;
-    }
-    playUrl(page, unescape(url), plugin.id + ':cosmonova:' + url + ':' + title, unescape(title));
-});
-
 new page.Route(plugin.id + ":dailymotion:(.*):(.*)", function(page, url, title) {
     page.loading = true;
     page.metadata.title = unescape(title);
@@ -278,15 +260,6 @@ new page.Route(plugin.id + ":euronews:(.*):(.*)", function(page, country, title)
     var json = JSON.parse(http.request('http://' + country + '.euronews.com/api/watchlive.json'));
     json = JSON.parse(http.request(json.url));
     playUrl(page, json.primary, plugin.id + ':euronews:' + country + ':' + title, unescape(title));
-});
-
-new page.Route(plugin.id + ":vgtrk:(.*):(.*)", function(page, url, title) {
-    page.metadata.title = unescape(title);
-    page.loading = true;
-    var resp = http.request(unescape(url)).toString();
-    var match = resp.match(/"auto":"([\S\s]*?)"\}/);
-    if (match) match = match[1].replace(/\\/g, '');
-    playUrl(page, match, plugin.id + ':vgtrk:' + url + ':' + title, unescape(title));
 });
 
 new page.Route(plugin.id + ":ts:(.*):(.*)", function(page, url, title) {
