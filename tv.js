@@ -211,7 +211,7 @@ new page.Route(plugin.id + ":m3u8:(.*):(.*)", function(page, url, title) {
     page.loading = true;
     page.metadata.title = unescape(title);
     var resp = http.request('http://' + unescape(url)).toString();
-    var match = resp.match(/[^ "|\']+m3u8[^ "|\']*/g);
+    var match = resp.match(/[^ "|\'|>]+m3u8[^ "|\'|<]*/g);
     for (var i in match) {
         var elem = match[i].replace(/\\\//g, '/').replace(/^\/\//g, 'http://');
         if (elem.match(/^http/)) {
@@ -220,6 +220,35 @@ new page.Route(plugin.id + ":m3u8:(.*):(.*)", function(page, url, title) {
         }
     }
     playUrl(page, match, plugin.id + ':m3u8:' + url + ':' + title, unescape(title)); 
+});
+
+new page.Route(plugin.id + ":gledai:(.*):(.*):(.*)", function(page, channel, route, title) {
+    page.loading = true;
+    page.metadata.title = unescape(title);
+    r = 'http://bg-gledai.org/geto2.php?my=' + unescape(channel);
+
+    var resp = http.request(r, {
+	headers: {
+	    Host: 'bg-gledai.org',
+	    Referer: 'http://' + unescape(route),
+	    'User-Agent': UA
+	}
+    }).toString();
+    var s = unescape(unescape(resp).match(/unescape\(\'(.*?)\'/)[1]);
+    resp = http.request(s, {
+	headers: {
+	    Host: 'bg-gledai.org',
+	    Referer: r,
+	    'User-Agent': UA
+	}
+    }).toString();
+    match = resp.match(/file>(.*?)</)[1].replace(/&amp;/g, '&');
+    io.httpInspectorCreate('.*gledai.*', function(req) {
+        req.setHeader('Origin', 'http://bg.gledai.org');
+        req.setHeader('Referer', r);
+        req.setHeader('User-Agent', UA);
+    });
+    playUrl(page, match, plugin.id + ':gledai:' + channel + ':' + route + ':' + title, unescape(title)); 
 });
 
 new page.Route(plugin.id + ":ovva:(.*):(.*)", function(page, url, title) {
