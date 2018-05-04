@@ -154,15 +154,21 @@ new page.Route(plugin.id + ":tivix:(.*):(.*):(.*)", function(page, url, title, i
         re = /<span id="srces" style="display:none">([\S\s]*?)</g;
         match = re.exec(resp);
     }
+
     while (match) {
+        io.httpInspectorCreate('.*' + match[1].replace('http://', '').replace('https://', '').split(/[/?#]/)[0].replace(/\./g, '\\.') + '.*', function(req) {
+            req.setHeader('Referer', unescape(url));
+            req.setHeader('User-Agent', UA);
+        });
         log('Probing: ' + match[1]);
-        if (io.probe(match[1]).result) {
+        if (!match[1].match(/m3u8/) && io.probe(match[1]).result) {
             match = re.exec(resp);
             continue;
         }
         var link = unescape(match[1]);
         if (link.match(/rtmp/))
             link += ' swfUrl=http://tivix.co' + (resp.match(/data="(.*)"/) ? resp.match(/data="(.*)"/)[1] : '') + ' pageUrl=' + unescape(url);
+        log('Playing url: ' + url);
         playUrl(page, link, plugin.id + ':tivix:' + url + ':' + title, unescape(title), 0, icon);
         return;
     }
@@ -946,7 +952,10 @@ new page.Route('xml:(.*):(.*)', function(page, pl, pageTitle) {
 });
 
 function log(str) {
-    if (service.debug) console.log(str);
+    if (service.debug) {
+        console.log(str);
+        print(str);
+    }
 }
 
 // Search IMDB ID by title
