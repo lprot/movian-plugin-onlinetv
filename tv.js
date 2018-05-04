@@ -225,6 +225,12 @@ new page.Route(plugin.id + ":m3u8:(.*):(.*)", function(page, url, title) {
             break;
         }
     }
+
+    io.httpInspectorCreate('.*' + match.replace('http://', '').replace('https://', '').split(/[/?#]/)[0].replace(/\./g, '\\.') + '.*', function(req) {
+        req.setHeader('Referer', 'http://' + unescape(url));
+        req.setHeader('User-Agent', UA);
+    });
+
     playUrl(page, match, plugin.id + ':m3u8:' + url + ':' + title, unescape(title)); 
 });
 
