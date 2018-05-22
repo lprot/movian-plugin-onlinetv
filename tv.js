@@ -237,11 +237,11 @@ new page.Route(plugin.id + ":m3u8:(.*):(.*)", function(page, url, title) {
 new page.Route(plugin.id + ":gledai:(.*):(.*):(.*)", function(page, channel, route, title) {
     page.loading = true;
     page.metadata.title = unescape(title);
-    r = 'http://www.bg-gledai.tv/new/geto2.php?my=' + unescape(channel);
+    r = 'http://www.bg-gledai.me/new/geto2.php?my=' + unescape(channel);
 
     var resp = http.request(r, {
 	headers: {
-	    Host: 'www.bg-gledai.tv',
+	    Host: 'www.bg-gledai.me',
 	    Referer: 'http://' + unescape(route),
 	    'User-Agent': UA
 	}
@@ -249,14 +249,14 @@ new page.Route(plugin.id + ":gledai:(.*):(.*):(.*)", function(page, channel, rou
     var s = unescape(unescape(resp).match(/unescape\(\'(.*?)\'/)[1]);
     resp = http.request(s, {
 	headers: {
-	    Host: 'www.bg-gledai.tv',
+	    Host: 'www.bg-gledai.me',
 	    Referer: r,
 	    'User-Agent': UA
 	}
     }).toString();
     match = resp.match(/file>(.*?)</)[1].replace(/&amp;/g, '&');
     io.httpInspectorCreate('.*gledai.*', function(req) {
-        req.setHeader('Origin', 'http://bg.gledai.tv');
+        req.setHeader('Origin', 'http://bg.gledai.me');
         req.setHeader('Referer', r);
         req.setHeader('User-Agent', UA);
     });
