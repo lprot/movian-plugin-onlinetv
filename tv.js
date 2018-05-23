@@ -213,6 +213,12 @@ function playUrl(page, url, canonicalUrl, title, mimetype, icon, subsscan, imdbi
     page.loading = false;
 }
 
+new page.Route(plugin.id + ":hls:(.*):(.*)", function(page, url, title) {
+    page.loading = true;
+    page.metadata.title = unescape(title);
+    playUrl(page, 'http://' + unescape(url), plugin.id + ':hls:' + url + ':' + title, unescape(title)); 
+});
+
 new page.Route(plugin.id + ":m3u8:(.*):(.*)", function(page, url, title) {
     page.loading = true;
     page.metadata.title = unescape(title);
@@ -685,7 +691,7 @@ function isPlaylist(pl) {
     var lastPart = pl.split("/").pop();
     if (pl.substr(0, 4) == 'XML:') 
         return 'xml';
-    if (pl.substr(0, 4) == 'M3U:' || extension == 'M3U' || lastPart == 'PLAYLIST' || 
+    if (pl.substr(0, 4) == 'M3U:' || (extension == 'M3U' && pl.substr(0, 4) != 'HLS:') || lastPart == 'PLAYLIST' || 
         pl.match(/TYPE=M3U/) || pl.match(/BIT.DO/) || pl.match(/BIT.LY/) || pl.match(/GOO.GL/) || 
 	pl.match(/TINYURL.COM/) || pl.match(/RAW.GITHUB/)) 
         return 'm3u';
