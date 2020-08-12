@@ -144,34 +144,95 @@ new page.Route(plugin.id + ":tivix:(.*):(.*):(.*)", function(page, url, title, i
     setPageHeader(page, unescape(title));
     page.loading = true;
     var resp = http.request(unescape(url)).toString();
-    var re = /file=([\S\s]*?)&/g;
+    var re = /file:\"([\S\s]*?)\"/g;
+    var pageload = /content=\"http:\/\/tv.tivix.co([\S\s]*?)\" \/>/g;
+	var authurl1regex = /\s+var\s+firstIpProtect\s+=\s+\'([\S\s]*?)\'\;/g;
+	var authurl2regex = /\s+var\s+secondIpProtect\s+=\s+\'([\S\s]*?)\'\;/g;
+	var authurl3regex = /\s+var\s+portProtect\s+=\s+\'([\S\s]*?)\'\;/g;
+	var authurl1match = authurl1regex.exec(resp);
+	var authurl2match = authurl2regex.exec(resp);
+	var authurl3match = authurl3regex.exec(resp);
+	var authurl1link = authurl1match[1];
+	var authurl2link = authurl2match[1];
+	var authurl3link = authurl3match[1];
+	
+    var pagematch = pageload.exec(resp);
+    var headerreferer = pagematch[1];
+    var originreferer = "http://tv.tivix.co";
     var match = re.exec(resp);
+    var authurl = fd2(match[1]);
+    var hostref = "";
+    if (/{v1}/.test(authurl)) {
+        hostref = authurl1link;
+    }
+    else {
+        hostref = authurl2link;
+    }
+	var re1 = /{v1}/g;
+	var re2 = /{v2}/g;
+    var re3 = /{v3}/g;
+    var reqstv = "";
+    var authurl1 = authurl.replace(re1, authurl1link);
+    var authurl2 = authurl1.replace(re2, authurl2link);
+	var authurl3 = authurl2.replace(re3, authurl3link);
     if (!match) {
         re = /skin" src="([\S\s]*?)"/g;
         match = re.exec(resp);
+		//console.log(match);
     }
     if (!match) {
         re = /<span id="srces" style="display:none">([\S\s]*?)</g;
         match = re.exec(resp);
+		//console.log(match);
     }
-
     while (match) {
-        io.httpInspectorCreate('.*' + match[1].replace('http://', '').replace('https://', '').split(/[/?#]/)[0].replace(/\./g, '\\.') + '.*', function(req) {
-            req.setHeader('Referer', unescape(url));
-            req.setHeader('User-Agent', UA);
+        console.log(authurl3);
+        console.log(originreferer+headerreferer+" | "+hostref+":8081");
+        console.log(match[1]);
+        //
+        reqstv = http.request(authurl3, {
+            //не перенапровлять
+            noFollow: true,
+            //не выдовать ошибку при 404
+            noFail: true,
+            //дебаг вывод
+            debug: true,
+            // пост дата для запроса с
+            postdata: {
+            },
+            headers: {
+              'Origin': originreferer,
+              'Referer': originreferer+headerreferer,
+              'Host': hostref+':8081',
+              'User-Agent': 'Mozilla/5.0 (X11; HasCodingOs 1.0; Linux x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36'
+            }
+          });
+      
+          if (reqstv.statuscode == '200') {
+            console.log('status 200');
+          }
+        //
+        //io.httpInspectorCreate('.*' + match[1].replace('http://', '').replace('https://', '').split(/[/?#]/)[0].replace(/\./g, '\\.') + '.*', function(req) {
+		io.httpInspectorCreate(authurl3, function(req) {
+            req.setHeader('Origin', originreferer);
+            req.setHeader('Referer', originreferer+headerreferer);
+            req.setHeader('Host', hostref+":8081");
+            req.setHeader('User-Agent', 'Mozilla/5.0 (X11; HasCodingOs 1.0; Linux x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.130 Safari/537.36');
         });
-        log('Probing: ' + match[1]);
-        if (!match[1].match(/m3u8/) && io.probe(match[1]).result) {
+        console.log('Probing: ' + match[1]);
+        console.log('OUT: ' + io.probe(authurl3).result);
+        if (!authurl3.match(/m3u8/) && io.probe(authurl3).result) {
             match = re.exec(resp);
             continue;
         }
-        var link = unescape(match[1]);
-        if (link.match(/rtmp/))
-            link += ' swfUrl=http://tivix.co' + (resp.match(/data="(.*)"/) ? resp.match(/data="(.*)"/)[1] : '') + ' pageUrl=' + unescape(url);
-        log('Playing url: ' + url);
+        var link = unescape(authurl3);
+        //if (link.match(/rtmp/))
+        //    link += ' swfUrl=http://tivix.co' + (resp.match(/data="(.*)"/) ? resp.match(/data="(.*)"/)[1] : '') + ' pageUrl=' + unescape(url);
+        //log('Playing url: ' + url);
         playUrl(page, link, plugin.id + ':tivix:' + url + ':' + title, unescape(title), 0, icon);
         return;
     }
+	console.log("NONE");
 
     // try to get youtube link
     match = resp.match(/\.com\/v\/([\S\s]*?)(\?|=)/);
@@ -192,7 +253,7 @@ new page.Route(plugin.id + ":acestream:(.*):(.*)", function(page, id, title) {
 
 function playUrl(page, url, canonicalUrl, title, mimetype, icon, subsscan, imdbid) {
     if (url) {
-        log('playUrl: ' + url);
+        console.log('playUrl: ' + url + " | " + canonicalUrl);
         if (url.substr(0, 2) == '//') 
             url = 'http:' + url;
         page.type = "video";
@@ -344,7 +405,7 @@ new page.Route(plugin.id + ":favorites", function(page) {
 new page.Route(plugin.id + ":indexTivix:(.*):(.*)", function(page, url, title) {
     page.model.contents = 'grid';
     setPageHeader(page, decodeURIComponent(title));
-    var url = prefixUrl = 'http://tivix.co' + decodeURIComponent(url);
+    var url = prefixUrl = 'http://tv.tivix.co' + decodeURIComponent(url);
     var tryToSearch = true,
         fromPage = 1,
         n = 0;
@@ -358,7 +419,7 @@ new page.Route(plugin.id + ":indexTivix:(.*):(.*)", function(page, url, title) {
         var re = /<div class="all_tv" title="([\S\s]*?)">[\S\s]*?href="([\S\s]*?)"[\S\s]*?<img src="([\S\s]*?)"/g;
         var match = re.exec(doc);
         while (match) {
-            var icon = 'http://tivix.co' + match[3];
+            var icon = 'http://tv.tivix.co' + match[3];
             var link = plugin.id + ":tivix:" + escape(match[2]) + ':' + escape(match[1]) + ':' + escape(icon);
             var item = page.appendItem(link, "video", {
                 title: match[1],
@@ -383,9 +444,9 @@ new page.Route(plugin.id + ":indexTivix:(.*):(.*)", function(page, url, title) {
 
 new page.Route(plugin.id + ":tivixStart", function(page) {
     page.model.contents = 'grid';
-    setPageHeader(page, 'Tivix.co');
+    setPageHeader(page, 'tv.tivix.co');
     page.loading = true;
-    var doc = http.request('http://tivix.co').toString();
+    var doc = http.request('http://tv.tivix.co').toString();
     page.loading = false;
     var re = /<div class="menuuuuuu"([\S\s]*?)<\/div>/g;
     var menus = re.exec(doc);
@@ -1392,8 +1453,8 @@ new page.Route(plugin.id + ":start", function(page) {
             icon: 'http://www.streamlive.to/images/logo.png'
         });
         page.appendItem(plugin.id + ":tivixStart", "directory", {
-            title: "Tivix.co",
-            icon: 'http://tivix.co/templates/Default/dleimages/logo.png'
+            title: "tv.tivix.co",
+            icon: 'http://tv.tivix.co/templates/Default/dleimages/logo.png'
         });
         page.appendItem(plugin.id + ":youtvStart", "directory", {
             title: "Youtv.com.ua",
@@ -1408,3 +1469,247 @@ new page.Route(plugin.id + ":start", function(page) {
         });
     }
 });
+
+
+//TIVIX
+v = {
+    bk4: "90944160-2d81-4756-a925-7cb6a8cbb090",
+    bk3: "90944160-2d81-4756-a925-7cb6a8cbb090",
+    bk2: "19202e40-a6d3-425d-bc0d-2fdf01ff3a8e",
+    bk1: "c3304152-58da-417b-a6cb-52b868c012ae",
+    bk0: "3036b479-6c95-4250-abd2-91910b1f02a5",
+    file3_separator: "//"
+};
+o = {
+    y: "xx???x=xx??x?="
+};
+ 
+// function fd2(x) {
+//     var a;
+//     eval(decode('#2aHR0cDovL3t2//OTcwZTYzMmUtMm//MzNmM2I4N2EtMWM3Yy00MDc2LWE2ODktNTVjNTZh//Y2UyMTczZjctZjAwNC00Njk5LWFmYmQtYzEwNzQ3MzYyZmQ0NmQwOWQ3Q4MC00N2M5LTg1ZTMtMjkxMGM0MmNiOGRmMn06e3YzfS9oMi9pbmRleC5tM3U4P3dtc0F1dGhTaWduPTE1ODAxODk2MzVTZWQxNzhhMDI1MzUwNTg4MzFkNjBkNjlhYzE2ZGEzM2RTOD//M//NDRkMWU0NjctZjI0Ni00NjY5LTkyZTEtOGVlNmI2YjNiMzE02Q0Nzg4ZjUtZWY1MC00MzI5LWFmYjYtYzQwMGFlMDg5N2ZhZoNzNoMDloMjEy'));
+//     return a
+// }
+ 
+function fd2(x) {
+    var a;
+    a = x.substr(2);
+    for (var i = 4; i > -1; i--) {
+        if (exist(v["bk" + i])) {
+            if (v["bk" + i] != "") {
+                a = a.replace(v.file3_separator + b1(v["bk" + i]), "");
+            }
+        }
+    }
+    try {
+        a = b2(a);
+    } catch (e) {
+        a = "";
+    }
+ 
+    function b1(str) {
+		//console.log(unescape(str));
+        return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g,
+            function toSolidBytes(match, p1) {
+                return String.fromCharCode("0x" + p1);
+            }));
+    }
+ 
+    function b2(str) {
+        return decodeURIComponent(atob(str).split("").map(function(c) {
+            return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(""));
+    };
+    return a
+};
+ 
+var dechar = function(x) {
+    return String.fromCharCode(x)
+};
+var decode = function(x) {
+    if (x.substr(0, 2) == "#1") {
+        return salt.d(pepper(x.substr(2), -1))
+    } else if (x.substr(0, 2) == "#0") {
+        return salt.d(x.substr(2))
+    } else {
+        return x
+    }
+};
+var abc = String.fromCharCode(65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122);
+var salt = {
+    _keyStr: abc + "0123456789+/=",
+    e: function(e) {
+        var t = "";
+        var n, r, i, s, o, u, a;
+        var f = 0;
+        e = salt._ue(e);
+        while (f < e.length) {
+            n = e.charCodeAt(f++);
+            r = e.charCodeAt(f++);
+            i = e.charCodeAt(f++);
+            s = n >> 2;
+            o = (n & 3) << 4 | r >> 4;
+            u = (r & 15) << 2 | i >> 6;
+            a = i & 63;
+            if (isNaN(r)) {
+                u = a = 64
+            } else if (isNaN(i)) {
+                a = 64
+            }
+            t = t + this._keyStr.charAt(s) + this._keyStr.charAt(o) + this._keyStr.charAt(u) + this._keyStr.charAt(a)
+        }
+        return t
+    },
+    d: function(e) {
+        var t = "";
+        var n, r, i;
+        var s, o, u, a;
+        var f = 0;
+        e = e.replace(/[^A-Za-z0-9\+\/\=]/g, "");
+        while (f < e.length) {
+            s = this._keyStr.indexOf(e.charAt(f++));
+            o = this._keyStr.indexOf(e.charAt(f++));
+            u = this._keyStr.indexOf(e.charAt(f++));
+            a = this._keyStr.indexOf(e.charAt(f++));
+            n = s << 2 | o >> 4;
+            r = (o & 15) << 4 | u >> 2;
+            i = (u & 3) << 6 | a;
+            t = t + dechar(n);
+            if (u != 64) {
+                t = t + dechar(r)
+            }
+            if (a != 64) {
+                t = t + dechar(i)
+            }
+        }
+        t = salt._ud(t);
+        return t
+    },
+    _ue: function(e) {
+        e = e.replace(/\r\n/g, "\n");
+        var t = "";
+        for (var n = 0; n < e.length; n++) {
+            var r = e.charCodeAt(n);
+            if (r < 128) {
+                t += dechar(r)
+            } else if (r > 127 && r < 2048) {
+                t += dechar(r >> 6 | 192);
+                t += dechar(r & 63 | 128)
+            } else {
+                t += dechar(r >> 12 | 224);
+                t += dechar(r >> 6 & 63 | 128);
+                t += dechar(r & 63 | 128)
+            }
+        }
+        return t
+    },
+    _ud: function(e) {
+        var t = "";
+        var n = 0;
+        var r = 0;
+        var c1 = 0;
+        var c2 = 0;
+        while (n < e.length) {
+            r = e.charCodeAt(n);
+            if (r < 128) {
+                t += dechar(r);
+                n++
+            } else if (r > 191 && r < 224) {
+                c2 = e.charCodeAt(n + 1);
+                t += dechar((r & 31) << 6 | c2 & 63);
+                n += 2
+            } else {
+                c2 = e.charCodeAt(n + 1);
+                c3 = e.charCodeAt(n + 2);
+                t += dechar((r & 15) << 12 | (c2 & 63) << 6 | c3 & 63);
+                n += 3
+            }
+        }
+        return t
+    }
+};
+var pepper = function(s, n) {
+    s = s.replace(/\+/g, "#");
+    s = s.replace(/#/g, "+");
+    var a = sugar(o.y) * n;
+    if (n < 0) a += abc.length / 2;
+    var r = abc.substr(a * 2) + abc.substr(0, a * 2);
+    return s.replace(/[A-Za-z]/g, function(c) {
+        return r.charAt(abc.indexOf(c))
+    })
+};
+var sugar = function(x) {
+    x = x.split(dechar(61));
+    var result = '';
+    var c1 = dechar(120);
+    var chr;
+    for (var i in x) {
+        if (x.hasOwnProperty(i)) {
+            var encoded = '';
+            for (var j in x[i]) {
+                if (x[i].hasOwnProperty(j)) {
+                    encoded += (x[i][j] == c1) ? dechar(49) : dechar(48)
+                }
+            }
+            chr = parseInt(encoded, 2);
+            result += dechar(chr.toString(10))
+        }
+    }
+    return result.substr(0, result.length - 1)
+};
+var exist = function(x) {
+    return x != null && typeof(x) != 'undefined'
+};
+
+
+  var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=';
+
+  function InvalidCharacterError(message) {
+    this.message = message;
+  }
+  InvalidCharacterError.prototype = new Error ();
+  InvalidCharacterError.prototype.name = 'InvalidCharacterError';
+
+  function btoa(input) {
+    var str = String (input);
+    for (
+      // initialize result and counter
+      var block, charCode, idx = 0, map = chars, output = '';
+      // if the next str index does not exist:
+      //   change the mapping table to "="
+      //   check if d has no fractional digits
+      str.charAt (idx | 0) || (map = '=', idx % 1);
+      // "8 - idx % 1 * 8" generates the sequence 2, 4, 6, 8
+      output += map.charAt (63 & block >> 8 - idx % 1 * 8)
+    ) {
+      charCode = str.charCodeAt (idx += 3 / 4);
+      if (charCode > 0xFF) {
+        throw new InvalidCharacterError ("'btoa' failed: The string to be encoded contains characters outside of the Latin1 range.");
+      }
+      block = block << 8 | charCode;
+    }
+    return output;
+  }
+
+  // decoder
+  // [https://gist.github.com/1020396] by [https://github.com/atk]
+  function atob(input) {
+    var str = (String (input)).replace (/[=]+$/, ''); // #31: ExtendScript bad parse of /=
+    if (str.length % 4 === 1) {
+      throw new InvalidCharacterError ("'atob' failed: The string to be decoded is not correctly encoded.");
+    }
+    for (
+      // initialize result and counters
+      var bc = 0, bs, buffer, idx = 0, output = '';
+      // get next character
+      buffer = str.charAt (idx++); // eslint-disable-line no-cond-assign
+      // character found in table? initialize bit storage and add its ascii value;
+      ~buffer && (bs = bc % 4 ? bs * 64 + buffer : buffer,
+        // and if not first of each 4 characters,
+        // convert the first 8 bits to one ascii character
+        bc++ % 4) ? output += String.fromCharCode (255 & bs >> (-2 * bc & 6)) : 0
+    ) {
+      // try to find character in table (0-63, not found => -1)
+      buffer = chars.indexOf (buffer);
+    }
+    return output;
+  }
