@@ -27,11 +27,11 @@ var io = require('native/io');
 var plugin = JSON.parse(Plugin.manifest);
 var logo = Plugin.path + plugin.icon;
 
-RichText = function (x) {
+RichText = function(x) {
   this.str = x.toString();
 };
 
-RichText.prototype.toRichString = function (x) {
+RichText.prototype.toRichString = function(x) {
   return this.str;
 };
 
@@ -64,28 +64,28 @@ function trim(s) {
 service.create(plugin.title, plugin.id + ':start', 'tv', true, logo);
 
 settings.globalSettings(plugin.id, plugin.title, logo, plugin.synopsis);
-settings.createBool('disableSampleList', 'Don\'t show Sample M3U list', false, function (v) {
+settings.createBool('disableSampleList', 'Don\'t show Sample M3U list', false, function(v) {
   service.disableSampleList = v;
 });
-settings.createBool('disableSampleXMLList', 'Don\'t show Sample XML list', false, function (v) {
+settings.createBool('disableSampleXMLList', 'Don\'t show Sample XML list', false, function(v) {
   service.disableSampleXMLList = v;
 });
-settings.createBool('disableProvidersList', 'Don\'t show Provider list', false, function (v) {
+settings.createBool('disableProvidersList', 'Don\'t show Provider list', false, function(v) {
   service.disableProviderList = v;
 });
-settings.createBool('disableEPG', 'Don\'t fetch EPG', true, function (v) {
+settings.createBool('disableEPG', 'Don\'t fetch EPG', true, function(v) {
   service.disableEPG = v;
 });
-settings.createString('acestreamIp', 'IP address of AceStream Proxy. Enter IP only.', '192.168.0.93', function (v) {
+settings.createString('acestreamIp', 'IP address of AceStream Proxy. Enter IP only.', '192.168.0.93', function(v) {
   service.acestreamIp = v;
 });
-settings.createBool('debug', 'Enable debug logging', false, function (v) {
+settings.createBool('debug', 'Enable debug logging', false, function(v) {
   service.debug = v;
 });
-settings.createBool('disableMyFavorites', 'Don\'t show My Favorites', false, function (v) {
+settings.createBool('disableMyFavorites', 'Don\'t show My Favorites', false, function(v) {
   service.disableMyFavorites = v;
 });
-settings.createAction('cleanFavorites', 'Clean My Favorites', function () {
+settings.createAction('cleanFavorites', 'Clean My Favorites', function() {
   store.list = '[]';
   popup.notify('Favorites has been cleaned successfully', 2);
 });
@@ -101,7 +101,7 @@ if (!playlists.list) {
 }
 
 function addOptionForAddingToMyFavorites(item, link, title, icon) {
-  item.addOptAction('Add \'' + title + '\' to My Favorites', function () {
+  item.addOptAction('Add \'' + title + '\' to My Favorites', function() {
     var entry = JSON.stringify({
       link: encodeURIComponent(link),
       title: encodeURIComponent(title),
@@ -113,7 +113,7 @@ function addOptionForAddingToMyFavorites(item, link, title, icon) {
 }
 
 function addOptionForRemovingFromMyFavorites(page, item, title, pos) {
-  item.addOptAction('Remove \'' + title + '\' from My Favorites', function () {
+  item.addOptAction('Remove \'' + title + '\' from My Favorites', function() {
     var list = eval(store.list);
     popup.notify('\'' + title + '\' has been removed from My Favorites.', 2);
     list.splice(pos, 1);
@@ -125,7 +125,7 @@ function addOptionForRemovingFromMyFavorites(page, item, title, pos) {
 var API = 'https://www.googleapis.com/youtube/v3',
   key = 'AIzaSyCSDI9_w8ROa1UoE2CNIUdDQnUhNbp9XR4';
 
-new page.Route(plugin.id + ':youtube:(.*)', function (page, title) {
+new page.Route(plugin.id + ':youtube:(.*)', function(page, title) {
   page.loading = true;
   try {
     var doc = http.request(API + '/search', {
@@ -146,7 +146,7 @@ new page.Route(plugin.id + ':youtube:(.*)', function (page, title) {
   page.loading = false;
 });
 
-new page.Route(plugin.id + ':tivix:(.*):(.*):(.*)', function (page, url, title, icon) {
+new page.Route(plugin.id + ':tivix:(.*):(.*):(.*)', function(page, url, title, icon) {
   setPageHeader(page, unescape(title));
   page.loading = true;
   var resp = http.request(unescape(url)).toString();
@@ -217,7 +217,7 @@ new page.Route(plugin.id + ':tivix:(.*):(.*):(.*)', function (page, url, title, 
     }
     //
     // io.httpInspectorCreate('.*' + match[1].replace('http://', '').replace('https://', '').split(/[/?#]/)[0].replace(/\./g, '\\.') + '.*', function(req) {
-    io.httpInspectorCreate(authurl3, function (req) {
+    io.httpInspectorCreate(authurl3, function(req) {
       req.setHeader('Origin', originreferer);
       req.setHeader('Referer', originreferer + headerreferer);
       req.setHeader('Host', hostref + ':8081');
@@ -252,7 +252,7 @@ new page.Route(plugin.id + ':tivix:(.*):(.*):(.*)', function (page, url, title, 
   page.loading = false;
 });
 
-new page.Route(plugin.id + ':acestream:(.*):(.*)', function (page, id, title) {
+new page.Route(plugin.id + ':acestream:(.*):(.*)', function(page, id, title) {
   playUrl(page, 'http://' + service.acestreamIp + ':6878/ace/manifest.m3u8?id=' + id.replace('//', ''), plugin.id + ':acestream:' + id + ':' + title, unescape(title));
 });
 
@@ -281,13 +281,13 @@ function playUrl(page, url, canonicalUrl, title, mimetype, icon, subsscan, imdbi
   page.loading = false;
 }
 
-new page.Route(plugin.id + ':hls:(.*):(.*)', function (page, url, title) {
+new page.Route(plugin.id + ':hls:(.*):(.*)', function(page, url, title) {
   page.loading = true;
   page.metadata.title = unescape(title);
   playUrl(page, 'http://' + unescape(url), plugin.id + ':hls:' + url + ':' + title, unescape(title));
 });
 
-new page.Route(plugin.id + ':m3u8:(.*):(.*)', function (page, url, title) {
+new page.Route(plugin.id + ':m3u8:(.*):(.*)', function(page, url, title) {
   page.loading = true;
   page.metadata.title = unescape(title);
   var resp = http.request('http://' + unescape(url)).toString();
@@ -300,7 +300,7 @@ new page.Route(plugin.id + ':m3u8:(.*):(.*)', function (page, url, title) {
     }
   }
 
-  io.httpInspectorCreate('.*' + match.replace('http://', '').replace('https://', '').split(/[/?#]/)[0].replace(/\./g, '\\.') + '.*', function (req) {
+  io.httpInspectorCreate('.*' + match.replace('http://', '').replace('https://', '').split(/[/?#]/)[0].replace(/\./g, '\\.') + '.*', function(req) {
     req.setHeader('Referer', 'http://' + unescape(url));
     req.setHeader('User-Agent', UA);
   });
@@ -308,7 +308,7 @@ new page.Route(plugin.id + ':m3u8:(.*):(.*)', function (page, url, title) {
   playUrl(page, match, plugin.id + ':m3u8:' + url + ':' + title, unescape(title));
 });
 
-new page.Route(plugin.id + ':gledai:(.*):(.*):(.*)', function (page, channel, route, title) {
+new page.Route(plugin.id + ':gledai:(.*):(.*):(.*)', function(page, channel, route, title) {
   page.loading = true;
   page.metadata.title = unescape(title);
   r = 'http://www.bg-gledai.me/new/geto2.php?my=' + unescape(channel);
@@ -329,7 +329,7 @@ new page.Route(plugin.id + ':gledai:(.*):(.*):(.*)', function (page, channel, ro
     },
   }).toString();
   match = resp.match(/file>(.*?)</)[1].replace(/&amp;/g, '&');
-  io.httpInspectorCreate('.*gledai.*', function (req) {
+  io.httpInspectorCreate('.*gledai.*', function(req) {
     req.setHeader('Origin', 'http://bg.gledai.me');
     req.setHeader('Referer', r);
     req.setHeader('User-Agent', UA);
@@ -337,7 +337,7 @@ new page.Route(plugin.id + ':gledai:(.*):(.*):(.*)', function (page, channel, ro
   playUrl(page, match, plugin.id + ':gledai:' + channel + ':' + route + ':' + title, unescape(title));
 });
 
-new page.Route(plugin.id + ':ovva:(.*):(.*)', function (page, url, title) {
+new page.Route(plugin.id + ':ovva:(.*):(.*)', function(page, url, title) {
   page.loading = true;
   page.metadata.title = unescape(title);
   var match = http.request('https://' + unescape(url)).toString();
@@ -359,7 +359,7 @@ new page.Route(plugin.id + ':ovva:(.*):(.*)', function (page, url, title) {
   playUrl(page, match, plugin.id + ':ovva:' + url + ':' + title, unescape(title));
 });
 
-new page.Route(plugin.id + ':dailymotion:(.*):(.*)', function (page, url, title) {
+new page.Route(plugin.id + ':dailymotion:(.*):(.*)', function(page, url, title) {
   page.loading = true;
   page.metadata.title = unescape(title);
   var resp = http.request('http://www.dailymotion.com/embed/video/' + url).toString();
@@ -368,7 +368,7 @@ new page.Route(plugin.id + ':dailymotion:(.*):(.*)', function (page, url, title)
   playUrl(page, match, plugin.id + ':dailymotion:' + url + ':' + title, unescape(title));
 });
 
-new page.Route(plugin.id + ':euronews:(.*):(.*)', function (page, country, title) {
+new page.Route(plugin.id + ':euronews:(.*):(.*)', function(page, country, title) {
   page.loading = true;
   page.metadata.title = unescape(title);
   if (country == 'en') {
@@ -379,7 +379,7 @@ new page.Route(plugin.id + ':euronews:(.*):(.*)', function (page, country, title
   playUrl(page, json.primary, plugin.id + ':euronews:' + country + ':' + title, unescape(title));
 });
 
-new page.Route(plugin.id + ':ts:(.*):(.*)', function (page, url, title) {
+new page.Route(plugin.id + ':ts:(.*):(.*)', function(page, url, title) {
   page.metadata.title = unescape(title);
   page.loading = true;
   playUrl(page, unescape(url), plugin.id + ':ts:' + url + ':' + title, unescape(title), 'video/mp2t');
@@ -406,12 +406,12 @@ function fill_fav(page) {
 }
 
 // Favorites
-new page.Route(plugin.id + ':favorites', function (page) {
+new page.Route(plugin.id + ':favorites', function(page) {
   setPageHeader(page, 'My Favorites');
   fill_fav(page);
 });
 
-new page.Route(plugin.id + ':indexTivix:(.*):(.*)', function (page, url, title) {
+new page.Route(plugin.id + ':indexTivix:(.*):(.*)', function(page, url, title) {
   page.model.contents = 'grid';
   setPageHeader(page, decodeURIComponent(title));
   var url = prefixUrl = 'http://tv.tivix.co' + decodeURIComponent(url);
@@ -444,7 +444,7 @@ new page.Route(plugin.id + ':indexTivix:(.*):(.*)', function (page, url, title) 
       return tryToSearch = false;
     }
     fromPage++;
-    url = prefixUrl + 'page/' + fromPage;;
+    url = prefixUrl + 'page/' + fromPage;
     return true;
   }
   loader();
@@ -452,7 +452,7 @@ new page.Route(plugin.id + ':indexTivix:(.*):(.*)', function (page, url, title) 
   page.loading = false;
 });
 
-new page.Route(plugin.id + ':tivixStart', function (page) {
+new page.Route(plugin.id + ':tivixStart', function(page) {
   page.model.contents = 'grid';
   setPageHeader(page, 'tv.tivix.co');
   page.loading = true;
@@ -475,14 +475,14 @@ new page.Route(plugin.id + ':tivixStart', function (page) {
 
 var devId = 0;
 if (!devId) {
-  devId = 'xxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx'.replace(/[xy]/g, function (t) {
+  devId = 'xxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx'.replace(/[xy]/g, function(t) {
     var e = 16 * Math.random() | 0,
       n = 'x' == t ? e : 3 & e | 8;
     return n.toString(16);
   });
 }
 
-new page.Route(plugin.id + ':playYoutv:(.*):(.*):(.*)', function (page, url, title, icon) {
+new page.Route(plugin.id + ':playYoutv:(.*):(.*):(.*)', function(page, url, title, icon) {
   page.loading = true;
   var json = JSON.parse(http.request(unescape(url), {
     headers: {
@@ -498,7 +498,7 @@ new page.Route(plugin.id + ':playYoutv:(.*):(.*):(.*)', function (page, url, tit
 
   var link = 'https:' + json.playback_url;
 
-  io.httpInspectorCreate('.*' + link.replace('http://', '').replace('https://', '').split(/[/?#]/)[0].replace(/\./g, '\\.') + '.*', function (req) {
+  io.httpInspectorCreate('.*' + link.replace('http://', '').replace('https://', '').split(/[/?#]/)[0].replace(/\./g, '\\.') + '.*', function(req) {
     req.setHeader('Referer', 'https://youtv.com.ua/');
     req.setHeader('X-Requested-With', 'ShockwaveFlash/28.0.0.126');
     req.setHeader('User-Agent', UA);
@@ -506,7 +506,7 @@ new page.Route(plugin.id + ':playYoutv:(.*):(.*):(.*)', function (page, url, tit
   playUrl(page, link, plugin.id + ':playYoutv:' + url + ':' + title, unescape(title), 0, icon);
 });
 
-new page.Route(plugin.id + ':youtvStart', function (page) {
+new page.Route(plugin.id + ':youtvStart', function(page) {
   page.model.contents = 'grid';
   setPageHeader(page, 'Youtv.com.ua');
   page.loading = true;
@@ -560,7 +560,7 @@ new page.Route(plugin.id + ':youtvStart', function (page) {
 });
 
 function addOptionToRemovePlaylist(page, item, title, pos) {
-  item.addOptAction('Remove \'' + title + '\' playlist from the list', function () {
+  item.addOptAction('Remove \'' + title + '\' playlist from the list', function() {
     var playlist = eval(playlists.list);
     popup.notify('\'' + title + '\' has been removed from the list.', 2);
     playlist.splice(pos, 1);
@@ -596,7 +596,7 @@ var m3uItems = [],
   groups = [],
   theLastList = '';
 
-new page.Route('m3uGroup:(.*):(.*)', function (page, pl, groupID) {
+new page.Route('m3uGroup:(.*):(.*)', function(page, pl, groupID) {
   setPageHeader(page, decodeURIComponent(groupID));
   if (theLastList != pl) {
     readAndParseM3U(page, pl);
@@ -759,7 +759,7 @@ function addItem(page, url, title, icon, description, genre, epgForTitle, header
     });
   } else {
     if (headers) {
-      io.httpInspectorCreate('.*' + url.replace('http://', '').replace('https://', '').split(/[/?#]/)[0].replace(/\./g, '\\.') + '.*', function (req) {
+      io.httpInspectorCreate('.*' + url.replace('http://', '').replace('https://', '').split(/[/?#]/)[0].replace(/\./g, '\\.') + '.*', function(req) {
         var tmp = headers.split('|');
         for (i in tmp) {
           var header = unescape(tmp[i].replace(/\"/g, '')).match(/([\s\S]*?)=([\s\S]*?)$/);
@@ -838,7 +838,7 @@ function showM3U(page, pl) {
   return num;
 }
 
-new page.Route('m3u:(.*):(.*)', function (page, pl, title) {
+new page.Route('m3u:(.*):(.*)', function(page, pl, title) {
   setPageHeader(page, unescape(title));
   page.loading = true;
   readAndParseM3U(page, pl);
@@ -851,14 +851,14 @@ var XML = require('showtime/xml');
 function setColors(s) {
   if (!s) return '';
   return s.toString().replace(/="##/g, '="#').replace(/="lime"/g,
-    '="#32CD32"').replace(/="aqua"/g, '="#00FFFF"').replace(/='green'/g,
-    '="#00FF00"').replace(/='cyan'/g, '="#00FFFF"').replace(/="LightSalmon"/g,
-    '="#ffa07a"').replace(/="PaleGoldenrod"/g, '="#eee8aa"').replace(/="Aquamarine"/g,
-    '="#7fffd4"').replace(/="LightSkyBlue"/g, '="#87cefa"').replace(/="palegreen"/g,
-    '="#98fb98"').replace(/="yellow"/g, '="#FFFF00"').replace(/font color=""/g, 'font color="#FFFFFF"');
+      '="#32CD32"').replace(/="aqua"/g, '="#00FFFF"').replace(/='green'/g,
+      '="#00FF00"').replace(/='cyan'/g, '="#00FFFF"').replace(/="LightSalmon"/g,
+      '="#ffa07a"').replace(/="PaleGoldenrod"/g, '="#eee8aa"').replace(/="Aquamarine"/g,
+      '="#7fffd4"').replace(/="LightSkyBlue"/g, '="#87cefa"').replace(/="palegreen"/g,
+      '="#98fb98"').replace(/="yellow"/g, '="#FFFF00"').replace(/font color=""/g, 'font color="#FFFFFF"');
 }
 
-new page.Route(plugin.id + ':parse:(.*):(.*)', function (page, parser, title) {
+new page.Route(plugin.id + ':parse:(.*):(.*)', function(page, parser, title) {
   setPageHeader(page, unescape(title));
   page.loading = true;
   var n = 1;
@@ -979,7 +979,7 @@ function getEpg(region, channelId) {
   return description;
 }
 
-new page.Route('xml:(.*):(.*)', function (page, pl, pageTitle) {
+new page.Route('xml:(.*):(.*)', function(page, pl, pageTitle) {
   log('Main list: ' + decodeURIComponent(pl).trim());
   setPageHeader(page, unescape(pageTitle));
   page.loading = true;
@@ -1132,7 +1132,7 @@ function getIMDBid(title) {
   return imdbid;
 };
 
-new page.Route(plugin.id + ':streamlive:(.*):(.*):(.*)', function (page, url, title, icon) {
+new page.Route(plugin.id + ':streamlive:(.*):(.*):(.*)', function(page, url, title, icon) {
   page.loading = true;
   var doc = http.request(unescape(url)).toString();
   var imdbid = lnk = scansubs = 0;
@@ -1164,11 +1164,11 @@ new page.Route(plugin.id + ':streamlive:(.*):(.*):(.*)', function (page, url, ti
   playUrl(page, lnk, plugin.id + ':streamlive:' + url + ':' + title, unescape(title), mimetype, icon, !scansubs, imdbid);
 });
 
-new page.Route(plugin.id + ':streamliveStart', function (page) {
+new page.Route(plugin.id + ':streamliveStart', function(page) {
   setPageHeader(page, 'StreamLive.to');
   page.loading = true;
 
-  io.httpInspectorCreate('.*streamlive\\.to.*', function (req) {
+  io.httpInspectorCreate('.*streamlive\\.to.*', function(req) {
     req.setHeader('Host', req.url.replace('http://', '').replace('https://', '').split(/[/?#]/)[0]);
     req.setHeader('Origin', 'https://www.streamlive.to');
     req.setHeader('Referer', 'https://www.streamlive.to/channels?list=free');
@@ -1207,7 +1207,7 @@ new page.Route(plugin.id + ':streamliveStart', function (page) {
         genre: new RichText(trim(match[8]) + coloredStr('<br>Language: ', orange) + trim(match[4])),
         tagline: new RichText((trim(match[5]) ? coloredStr('Now: ', orange) + trim(match[5].replace(/&nbsp;/g, '')).replace(/^"|"$/g, '') : '')),
         description: new RichText(
-          coloredStr('Viewers: ', orange) + trim(match[6]) +
+            coloredStr('Viewers: ', orange) + trim(match[6]) +
           coloredStr(' Total views: ', orange) + trim(match[7])),
       });
       match = re.exec(doc);
@@ -1225,7 +1225,7 @@ new page.Route(plugin.id + ':streamliveStart', function (page) {
 });
 
 function addActionToTheItem(page, menuText, id, type) {
-  page.options.createAction('addPlaylist' + type, menuText, function () {
+  page.options.createAction('addPlaylist' + type, menuText, function() {
     var result = popup.textDialog('Enter the URL to the playlist like:\n' +
       'http://bit.ly/' + id + ' or just bit.ly/' + id + ' or ' + id, true, true);
     if (!result.rejected && result.input) {
@@ -1253,7 +1253,7 @@ function addActionToTheItem(page, menuText, id, type) {
 
 var idcJson;
 
-new page.Route(plugin.id + ':idcPlay:(.*):(.*)', function (page, id, title) {
+new page.Route(plugin.id + ':idcPlay:(.*):(.*)', function(page, id, title) {
   page.loading = true;
   var json = JSON.parse(http.request('http://iptvn.idc.md/api/json/get_url?cid=' + id));
   playUrl(page, unescape(json.url).replace('http/ts', 'http'), plugin.id + ':idcPlay:' + id + ':' + title, decodeURI(title), 'video/mp2t');
@@ -1270,7 +1270,7 @@ function getEpgPeriod(ts1, ts2, epg) {
   return ' (' + tsToTime(ts1) + '-' + tsToTime(ts2) + ') ' + epg;
 }
 
-new page.Route(plugin.id + ':idcGroups:(.*)', function (page, id) {
+new page.Route(plugin.id + ':idcGroups:(.*)', function(page, id) {
   page.loading = true;
   var counter = 0;
   if (!idcJson) getIdc(page, 'https://iptvn.idc.md/api/json/channel_list');
@@ -1332,7 +1332,7 @@ function getIdc(page, url) {
   }
 }
 
-new page.Route(plugin.id + ':idcStart', function (page) {
+new page.Route(plugin.id + ':idcStart', function(page) {
   setPageHeader(page, 'Idc.md');
   page.loading = true;
   if (!getIdc(page, 'https://iptvn.idc.md/api/json/channel_list')) return;
@@ -1347,7 +1347,7 @@ new page.Route(plugin.id + ':idcStart', function (page) {
   page.loading = false;
 });
 
-new page.Route(plugin.id + ':playgoAtDee:(.*):(.*)', function (page, url, title) {
+new page.Route(plugin.id + ':playgoAtDee:(.*):(.*)', function(page, url, title) {
   page.loading = true;
   page.metadata.title = unescape(title);
   var link = null;
@@ -1385,7 +1385,7 @@ new page.Route(plugin.id + ':playgoAtDee:(.*):(.*)', function (page, url, title)
   playUrl(page, link, plugin.id + ':playgoAtDee:' + url + ':' + title, unescape(title));
 });
 
-new page.Route(plugin.id + ':goAtDeeStart', function (page) {
+new page.Route(plugin.id + ':goAtDeeStart', function(page) {
   setPageHeader(page, 'goATDee.Net');
   page.loading = true;
   var doc = http.request('http://goatd.net').toString();
@@ -1413,7 +1413,7 @@ new page.Route(plugin.id + ':goAtDeeStart', function (page) {
   page.loading = false;
 });
 
-new page.Route(plugin.id + ':loadOnePlaylist', function (page) {
+new page.Route(plugin.id + ':loadOnePlaylist', function(page) {
   setPageHeader(page, 'All channels');
   page.loading = true;
   page.metadata.title = 'Downloading M3U playlist...';
@@ -1426,7 +1426,7 @@ new page.Route(plugin.id + ':loadOnePlaylist', function (page) {
 });
 
 
-new page.Route(plugin.id + ':onePlaylistStart', function (page) {
+new page.Route(plugin.id + ':onePlaylistStart', function(page) {
   setPageHeader(page, 'Oneplaylist.space - Stream Database');
   page.loading = true;
   page.appendItem(plugin.id + ':loadOnePlaylist', 'directory', {
@@ -1449,7 +1449,7 @@ new page.Route(plugin.id + ':onePlaylistStart', function (page) {
 });
 
 // Start page
-new page.Route(plugin.id + ':start', function (page) {
+new page.Route(plugin.id + ':start', function(page) {
   setPageHeader(page, plugin.title);
   page.metadata.icon = logo;
 
@@ -1467,7 +1467,7 @@ new page.Route(plugin.id + ':start', function (page) {
   addActionToTheItem(page, 'Add XML playlist', '1zVA91a', 'XML');
 
   // menu to delete playlists
-  page.options.createAction('rmPlaylist', 'Remove playlist...', function () {
+  page.options.createAction('rmPlaylist', 'Remove playlist...', function() {
     var list = eval(playlists.list);
     for (var i in list) {
       var result = popup.message('Do you want to remove \'' + decodeURIComponent(JSON.parse(list[i]).title) + '\' playlist?', true, true);
@@ -1529,11 +1529,11 @@ new page.Route(plugin.id + ':start', function (page) {
 
 // TIVIX
 v = {
-  bk4: '90944160-2d81-4756-a925-7cb6a8cbb090',
-  bk3: '90944160-2d81-4756-a925-7cb6a8cbb090',
-  bk2: '19202e40-a6d3-425d-bc0d-2fdf01ff3a8e',
-  bk1: 'c3304152-58da-417b-a6cb-52b868c012ae',
-  bk0: '3036b479-6c95-4250-abd2-91910b1f02a5',
+  bk0: 'a60098ff-5638-4112-8508-e412c2f3f27f',
+  bk1: '5de6a8a5-a367-4476-b4de-e4d63c14d30d',
+  bk2: '19202e40-a6d3-425d-bc0d-2fdf01ff3a8f',
+  bk3: '90944160-2d81-4756-a925-7cb6a8cbb09a',
+  bk4: '66c37da2-cef5-4863-bccb-675cdb6b73b0',
   file3_separator: '//',
 };
 o = {
@@ -1545,6 +1545,32 @@ o = {
 //     eval(decode('#2aHR0cDovL3t2//OTcwZTYzMmUtMm//MzNmM2I4N2EtMWM3Yy00MDc2LWE2ODktNTVjNTZh//Y2UyMTczZjctZjAwNC00Njk5LWFmYmQtYzEwNzQ3MzYyZmQ0NmQwOWQ3Q4MC00N2M5LTg1ZTMtMjkxMGM0MmNiOGRmMn06e3YzfS9oMi9pbmRleC5tM3U4P3dtc0F1dGhTaWduPTE1ODAxODk2MzVTZWQxNzhhMDI1MzUwNTg4MzFkNjBkNjlhYzE2ZGEzM2RTOD//M//NDRkMWU0NjctZjI0Ni00NjY5LTkyZTEtOGVlNmI2YjNiMzE02Q0Nzg4ZjUtZWY1MC00MzI5LWFmYjYtYzQwMGFlMDg5N2ZhZoNzNoMDloMjEy'));
 //     return a
 // }
+
+function decoder(x) {
+  var a = x.substring(2, x.length);
+  var file3_separator = '\/\/';
+  // bk0, bk1...bk4
+  var bk = [
+    'a60098ff-5638-4112-8508-e412c2f3f27f',
+    '5de6a8a5-a367-4476-b4de-e4d63c14d30d',
+    '19202e40-a6d3-425d-bc0d-2fdf01ff3a8f',
+    '90944160-2d81-4756-a925-7cb6a8cbb09a',
+    '66c37da2-cef5-4863-bccb-675cdb6b73b0'];
+
+  for (var k=bk.length; k>=0; k-- ) {
+    var e=encodeURIComponent(bk[k]);
+    var b = file3_separator + Duktape.enc('base64', e);
+    a = a.replace(b, '');
+  }
+
+  try {
+    var template = Duktape.dec('base64', a);
+  } catch (err) {
+    var template = '';
+  }
+
+  return template;
+}
 
 function fd2(x) {
   var a;
@@ -1565,23 +1591,23 @@ function fd2(x) {
   function b1(str) {
     // console.log(unescape(str));
     return btoa(encodeURIComponent(str).replace(/%([0-9A-F]{2})/g,
-      function toSolidBytes(match, p1) {
-        return String.fromCharCode('0x' + p1);
-      }));
+        function toSolidBytes(match, p1) {
+          return String.fromCharCode('0x' + p1);
+        }));
   }
 
   function b2(str) {
-    return decodeURIComponent(atob(str).split('').map(function (c) {
+    return decodeURIComponent(atob(str).split('').map(function(c) {
       return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
     }).join(''));
   };
   return a;
 };
 
-var dechar = function (x) {
+var dechar = function(x) {
   return String.fromCharCode(x);
 };
-var decode = function (x) {
+var decode = function(x) {
   if (x.substr(0, 2) == '#1') {
     return salt.d(pepper(x.substr(2), -1));
   } else if (x.substr(0, 2) == '#0') {
@@ -1593,7 +1619,7 @@ var decode = function (x) {
 var abc = String.fromCharCode(65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122);
 var salt = {
   _keyStr: abc + '0123456789+/=',
-  e: function (e) {
+  e: function(e) {
     var t = '';
     var n, r, i, s, o, u, a;
     var f = 0;
@@ -1615,7 +1641,7 @@ var salt = {
     }
     return t;
   },
-  d: function (e) {
+  d: function(e) {
     var t = '';
     var n, r, i;
     var s, o, u, a;
@@ -1640,7 +1666,7 @@ var salt = {
     t = salt._ud(t);
     return t;
   },
-  _ue: function (e) {
+  _ue: function(e) {
     e = e.replace(/\r\n/g, '\n');
     var t = '';
     for (var n = 0; n < e.length; n++) {
@@ -1658,7 +1684,7 @@ var salt = {
     }
     return t;
   },
-  _ud: function (e) {
+  _ud: function(e) {
     var t = '';
     var n = 0;
     var r = 0;
@@ -1683,17 +1709,17 @@ var salt = {
     return t;
   },
 };
-var pepper = function (s, n) {
+var pepper = function(s, n) {
   s = s.replace(/\+/g, '#');
   s = s.replace(/#/g, '+');
   var a = sugar(o.y) * n;
   if (n < 0) a += abc.length / 2;
   var r = abc.substr(a * 2) + abc.substr(0, a * 2);
-  return s.replace(/[A-Za-z]/g, function (c) {
+  return s.replace(/[A-Za-z]/g, function(c) {
     return r.charAt(abc.indexOf(c));
   });
 };
-var sugar = function (x) {
+var sugar = function(x) {
   x = x.split(dechar(61));
   var result = '';
   var c1 = dechar(120);
@@ -1712,7 +1738,7 @@ var sugar = function (x) {
   }
   return result.substr(0, result.length - 1);
 };
-var exist = function (x) {
+var exist = function(x) {
   return x != null && typeof (x) != 'undefined';
 };
 
@@ -1760,9 +1786,9 @@ function atob(input) {
     buffer = str.charAt(idx++); // eslint-disable-line no-cond-assign
     // character found in table? initialize bit storage and add its ascii value;
     ~buffer && (bs = bc % 4 ? bs * 64 + buffer : buffer,
-      // and if not first of each 4 characters,
-      // convert the first 8 bits to one ascii character
-      bc++ % 4) ? output += String.fromCharCode(255 & bs >> (-2 * bc & 6)) : 0
+    // and if not first of each 4 characters,
+    // convert the first 8 bits to one ascii character
+    bc++ % 4) ? output += String.fromCharCode(255 & bs >> (-2 * bc & 6)) : 0
   ) {
     // try to find character in table (0-63, not found => -1)
     buffer = chars.indexOf(buffer);
