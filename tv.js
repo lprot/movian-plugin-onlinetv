@@ -659,6 +659,8 @@ function readAndParseM3U(page, pl, m3u) {
     m3uRegion = '',
     m3uEpgId = '',
     m3uHeaders = '';
+  m3uUA = '';
+
   for (var i = 0; i < m3u.length; i++) {
     page.metadata.title = 'Parsing M3U list. Line ' + i + ' of ' + m3u.length;
     line = m3u[i].trim();
