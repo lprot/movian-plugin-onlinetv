@@ -33,6 +33,7 @@ var popup = require('native/popup');
 var io = require('native/io');
 var plugin = JSON.parse(Plugin.manifest);
 var logo = Plugin.path + plugin.icon;
+var DeanEdwardsUnpacker = require('./utils/Dean-Edwards-Unpacker').unpacker;
 
 RichText = function(x) {
   this.str = x.toString();
@@ -173,6 +174,21 @@ new page.Route(plugin.id + ':tivix:(.*):(.*):(.*)', function(page, url, title, i
   var headerreferer = pagematch[1];
   var originreferer = 'http://tv.tivix.co';
   var match = re.exec(resp);
+
+  var packed = http.request('http://tv.tivix.co/templates/Default/js/tv-pjs.js?v=2', {
+    headers: {
+      'Referer': 'http://tv.tivix.co',
+      'User-Agent': UA,
+    }}).toString();
+  var unpacked = DeanEdwardsUnpacker.unpack(packed);
+  u = unpacked.match(/u:'([^']+)/)[1];
+  v = JSON.parse(decode(u));
+  v.file3_separator = '//';
+
+  o = {
+    y: 'xx???x=xx??x?=',
+  };
+
   var authurl = fd2(match[1]);
   var hostref = '';
   if (/{v1}/.test(authurl)) {
@@ -272,12 +288,12 @@ function playUrl(page, url, canonicalUrl, title, mimetype, icon, subsscan, imdbi
     page.type = 'video';
     page.source = 'videoparams:' + JSON.stringify({
       title: title,
-      imdbid: imdbid ? imdbid : void(0),
+      imdbid: imdbid ? imdbid : void (0),
       canonicalUrl: canonicalUrl,
-      icon: icon ? unescape(icon) : void(0),
+      icon: icon ? unescape(icon) : void (0),
       sources: [{
         url: url.match(/m3u8/) ? 'hls:' + url : url,
-        mimetype: mimetype ? mimetype : void(0),
+        mimetype: mimetype ? mimetype : void (0),
       }],
       no_subtitle_scan: subsscan ? false : true,
       no_fs_scan: subsscan ? false : true,
@@ -719,7 +735,7 @@ function readAndParseM3U(page, pl, m3u) {
           region: m3uRegion,
           epgid: m3uEpgId,
           // headers: m3uHeaders ? m3uHeaders[2] : void (0),
-          headers: m3uHeaders ? m3uHeaders[2] : m3uUA ? m3uUA : void(0),
+          headers: m3uHeaders ? m3uHeaders[2] : m3uUA ? m3uUA : void (0),
         });
         m3uUrl = '', m3uTitle = '', m3uImage = '', m3uEpgId = '', m3uHeaders = ''; // , m3uGroup = '';
     }
@@ -743,7 +759,7 @@ function addItem(page, url, title, icon, description, genre, epgForTitle, header
     linkUrl = url.toUpperCase().match(/M3U8/) || url.toUpperCase().match(/\.SMIL/) ? 'hls:' + url : url;
     link = 'videoparams:' + JSON.stringify({
       title: title,
-      icon: icon ? icon : void(0),
+      icon: icon ? icon : void (0),
       sources: [{
         url: linkUrl,
       }],
@@ -982,7 +998,7 @@ function getEpg(region, channelId) {
       description += '<br>' + match[1] + coloredStr(' - ' + match[2], orange);
       match = re.exec(epg);
     }
-  } catch (err) {}
+  } catch (err) { }
   return description;
 }
 
@@ -1535,18 +1551,9 @@ new page.Route(plugin.id + ':start', function(page) {
 
 
 // TIVIX
-v = {
-  bk0: 'a60098ff-5638-4112-8508-e412c2f3f27f',
-  bk1: '5de6a8a5-a367-4476-b4de-e4d63c14d30d',
-  bk2: '19202e40-a6d3-425d-bc0d-2fdf01ff3a8f',
-  bk3: '90944160-2d81-4756-a925-7cb6a8cbb09a',
-  bk4: '66c37da2-cef5-4863-bccb-675cdb6b73b0',
-  file3_separator: '//',
-};
 o = {
   y: 'xx???x=xx??x?=',
 };
-
 // function fd2(x) {
 //     var a;
 //     eval(decode('#2aHR0cDovL3t2//OTcwZTYzMmUtMm//MzNmM2I4N2EtMWM3Yy00MDc2LWE2ODktNTVjNTZh//Y2UyMTczZjctZjAwNC00Njk5LWFmYmQtYzEwNzQ3MzYyZmQ0NmQwOWQ3Q4MC00N2M5LTg1ZTMtMjkxMGM0MmNiOGRmMn06e3YzfS9oMi9pbmRleC5tM3U4P3dtc0F1dGhTaWduPTE1ODAxODk2MzVTZWQxNzhhMDI1MzUwNTg4MzFkNjBkNjlhYzE2ZGEzM2RTOD//M//NDRkMWU0NjctZjI0Ni00NjY5LTkyZTEtOGVlNmI2YjNiMzE02Q0Nzg4ZjUtZWY1MC00MzI5LWFmYjYtYzQwMGFlMDg5N2ZhZoNzNoMDloMjEy'));
