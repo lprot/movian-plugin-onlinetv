@@ -1,3 +1,10 @@
+/* eslint-disable camelcase */
+/* eslint-disable guard-for-in */
+/* eslint-disable no-unused-vars */
+/* eslint-disable max-len */
+/* eslint-disable require-jsdoc */
+/* eslint-disable one-var */
+/* eslint-disable no-var */
 /*
  *  Online TV plugin for Movian Media Center
  *
@@ -1545,32 +1552,6 @@ o = {
 //     eval(decode('#2aHR0cDovL3t2//OTcwZTYzMmUtMm//MzNmM2I4N2EtMWM3Yy00MDc2LWE2ODktNTVjNTZh//Y2UyMTczZjctZjAwNC00Njk5LWFmYmQtYzEwNzQ3MzYyZmQ0NmQwOWQ3Q4MC00N2M5LTg1ZTMtMjkxMGM0MmNiOGRmMn06e3YzfS9oMi9pbmRleC5tM3U4P3dtc0F1dGhTaWduPTE1ODAxODk2MzVTZWQxNzhhMDI1MzUwNTg4MzFkNjBkNjlhYzE2ZGEzM2RTOD//M//NDRkMWU0NjctZjI0Ni00NjY5LTkyZTEtOGVlNmI2YjNiMzE02Q0Nzg4ZjUtZWY1MC00MzI5LWFmYjYtYzQwMGFlMDg5N2ZhZoNzNoMDloMjEy'));
 //     return a
 // }
-
-function decoder(x) {
-  var a = x.substring(2, x.length);
-  var file3_separator = '\/\/';
-  // bk0, bk1...bk4
-  var bk = [
-    'a60098ff-5638-4112-8508-e412c2f3f27f',
-    '5de6a8a5-a367-4476-b4de-e4d63c14d30d',
-    '19202e40-a6d3-425d-bc0d-2fdf01ff3a8f',
-    '90944160-2d81-4756-a925-7cb6a8cbb09a',
-    '66c37da2-cef5-4863-bccb-675cdb6b73b0'];
-
-  for (var k=bk.length; k>=0; k-- ) {
-    var e=encodeURIComponent(bk[k]);
-    var b = file3_separator + Duktape.enc('base64', e);
-    a = a.replace(b, '');
-  }
-
-  try {
-    var template = Duktape.dec('base64', a);
-  } catch (err) {
-    var template = '';
-  }
-
-  return template;
-}
 
 function fd2(x) {
   var a;
