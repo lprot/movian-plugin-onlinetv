@@ -158,7 +158,7 @@ new page.Route(plugin.id + ':tivix:(.*):(.*):(.*)', function(page, url, title, i
   setPageHeader(page, unescape(title));
   page.loading = true;
   var resp = http.request(unescape(url)).toString();
-  var re = /file:\"([\S\s]*?)\"/g;
+  var re = /Playerjs\([\S\s]+?file[\S\s]+?"([^"]+)/gm; // https://imgur.com/a/rQ0Yaiy
   var pageload = /content=\"http:\/\/tv.tivix.co([\S\s]*?)\" \/>/g;
   var authurl1regex = /\s+var\s+firstIpProtect\s+=\s+\'([\S\s]*?)\'\;/g;
   var authurl2regex = /\s+var\s+secondIpProtect\s+=\s+\'([\S\s]*?)\'\;/g;
@@ -175,19 +175,6 @@ new page.Route(plugin.id + ':tivix:(.*):(.*):(.*)', function(page, url, title, i
   var originreferer = 'http://tv.tivix.co';
   var match = re.exec(resp);
 
-  var packed = http.request('http://tv.tivix.co/templates/Default/js/tv-pjs.js?v=2', {
-    headers: {
-      'Referer': 'http://tv.tivix.co',
-      'User-Agent': UA,
-    }}).toString();
-  var unpacked = DeanEdwardsUnpacker.unpack(packed);
-  u = unpacked.match(/u:'([^']+)/)[1];
-  v = JSON.parse(decode(u));
-  v.file3_separator = '//';
-
-  o = {
-    y: 'xx???x=xx??x?=',
-  };
 
   var authurl = fd2(match[1]);
   var hostref = '';
@@ -494,6 +481,19 @@ new page.Route(plugin.id + ':tivixStart', function(page) {
     }
     menus = re.exec(doc);
   }
+  var packed = http.request('http://tv.tivix.co/templates/Default/js/tv-pjs.js?v=2', {
+    headers: {
+      'Referer': 'http://tv.tivix.co',
+      'User-Agent': UA,
+    }}).toString();
+  var unpacked = DeanEdwardsUnpacker.unpack(packed);
+  u = unpacked.match(/u:'([^']+)/)[1];
+  v = JSON.parse(decode(u));
+  v.file3_separator = '//';
+
+  o = {
+    y: 'xx???x=xx??x?=',
+  };
 });
 
 var devId = 0;
@@ -1590,9 +1590,9 @@ function fd2(x) {
     return decodeURIComponent(atob(str).split('').map(function(c) {
       return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
     }).join(''));
-  };
+  }
   return a;
-};
+}
 
 var dechar = function(x) {
   return String.fromCharCode(x);
