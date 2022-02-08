@@ -160,9 +160,9 @@ new page.Route(plugin.id + ':tivix:(.*):(.*):(.*)', function(page, url, title, i
   var resp = http.request(unescape(url)).toString();
   var re = /Playerjs\([\S\s]+?file[\S\s]+?"([^"]+)/gm; // https://imgur.com/a/rQ0Yaiy
   var pageload = /content=\"http:\/\/tv.tivix.co([\S\s]*?)\" \/>/g;
-  var authurl1regex = /\s+var\s+firstIpProtect\s+=\s+\'([\S\s]*?)\'\;/g;
-  var authurl2regex = /\s+var\s+secondIpProtect\s+=\s+\'([\S\s]*?)\'\;/g;
-  var authurl3regex = /\s+var\s+portProtect\s+=\s+\'([\S\s]*?)\'\;/g;
+  var authurl1regex = /firstIpProtect[\s\S]+var\s+firstIpProtect\s+=\s+\'([\S\s]*?)\'\;/g;
+  var authurl2regex = /secondIpProtect[\s\S]+var\s+secondIpProtect\s+=\s+\'([\S\s]*?)\'\;/g;
+  var authurl3regex = /portProtect[\s\S]+var\s+portProtect\s+=\s+\'([\S\s]*?)\'\;/g;
   var authurl1match = authurl1regex.exec(resp);
   var authurl2match = authurl2regex.exec(resp);
   var authurl3match = authurl3regex.exec(resp);
